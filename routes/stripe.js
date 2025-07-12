@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Stripe = require('stripe');
-const stripe = Stripe('');
+const stripe = Stripe('REMOVED_STRIPE_KEY');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
