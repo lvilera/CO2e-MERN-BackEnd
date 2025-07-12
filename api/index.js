@@ -38,17 +38,9 @@ app.use('/api/directory', directoryRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/contact', contactRoutes);
 
-// MongoDB Connection
-mongoose.connect('mongodb+srv://aryan:2021cs613@cluster0.o8bu9nt.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => {
-  console.log('Connected to MongoDB');
-  const PORT = 5001;
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-  });
-})
-.catch((err) => console.error('MongoDB connection failed:', err));
 
+
+const PORT = 5001;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
