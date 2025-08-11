@@ -4,6 +4,7 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const Instructor = require('../models/Instructor');
 const nodemailer = require('nodemailer');
+const { getUserLocation } = require('../services/geolocationService');
 
 const router = express.Router();
 
@@ -29,17 +30,26 @@ router.post('/signup', async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
+    // Get user's location from IP
+    const userLocation = getUserLocation(req);
+
+    // Create user with location
     const newUser = new User({
       firstName,
       lastName,
       email,
       password: hashedPassword,
-      role: role || 'user'
+      role: role || 'user',
+      city: userLocation.city,
+      state: userLocation.state,
+      country: userLocation.country
     });
 
     await newUser.save();
-    res.status(201).json({ message: 'User registered successfully.' });
+    res.status(201).json({ 
+      message: 'User registered successfully.',
+      location: userLocation
+    });
 
   } catch (err) {
     console.error('Signup error:', err);
@@ -58,6 +68,15 @@ router.post('/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
+    // Update user's location on login if not already set
+    if (!user.city || user.city === 'Unknown') {
+      const userLocation = getUserLocation(req);
+      user.city = userLocation.city;
+      user.state = userLocation.state;
+      user.country = userLocation.country;
+      await user.save();
+    }
+
     const token = jwt.sign(
       { userId: user._id },
       JWT_SECRET, // ✅ using hardcoded key
@@ -71,11 +90,59 @@ router.post('/login', async (req, res) => {
       maxAge: 2 * 24 * 60 * 60 * 1000 // 2 days
     });
 
-    res.status(200).json({ message: 'Login successful', package: user.package, userId: user._id, token: token });
+    res.status(200).json({ 
+      message: 'Login successful', 
+      package: user.package, 
+      userId: user._id, 
+      token: token,
+      location: {
+        city: user.city,
+        state: user.state,
+        country: user.country
+      }
+    });
 
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update user location
+router.put('/update-location', async (req, res) => {
+  try {
+    // Check for token in cookies first, then Authorization header
+    let token = req.cookies.token;
+    
+    if (!token && req.headers.authorization) {
+      token = req.headers.authorization.replace('Bearer ', '');
+    }
+    
+    if (!token) return res.status(401).json({ error: 'No token' });
+    
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+    
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    // Get user's current location from IP
+    const userLocation = getUserLocation(req);
+    
+    // Update user's location
+    user.city = userLocation.city;
+    user.state = userLocation.state;
+    user.country = userLocation.country;
+    
+    await user.save();
+    
+    res.json({
+      success: true,
+      message: 'Location updated successfully',
+      location: userLocation
+    });
+  } catch (err) {
+    console.error('Error updating location:', err);
+    res.status(500).json({ error: 'Error updating location' });
   }
 });
 

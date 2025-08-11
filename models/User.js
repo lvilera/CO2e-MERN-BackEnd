@@ -26,6 +26,19 @@ const userSchema = new mongoose.Schema({
     default: ''
   },
   courses: [{ type: String }],
+  // Location fields for contractor matching
+  city: {
+    type: String,
+    trim: true
+  },
+  state: {
+    type: String,
+    trim: true
+  },
+  country: {
+    type: String,
+    trim: true
+  },
   resetPasswordToken: String,
   resetPasswordExpires: Date
 });
