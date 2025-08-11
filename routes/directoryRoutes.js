@@ -239,17 +239,24 @@ router.get('/debug-ip', async (req, res) => {
     const detectedIP = getClientIP(req);
     const userLocation = getUserLocation(req);
     
+    // Add more detailed IP detection for Vercel
+    const allHeaders = {};
+    Object.keys(req.headers).forEach(key => {
+      if (key.toLowerCase().includes('ip') || key.toLowerCase().includes('forward') || key.toLowerCase().includes('real')) {
+        allHeaders[key] = req.headers[key];
+      }
+    });
+    
     res.json({
       success: true,
       debug: {
         detectedIP,
         userLocation,
-        headers: {
-          'x-forwarded-for': req.headers['x-forwarded-for'],
-          'x-real-ip': req.headers['x-real-ip'],
-          'remote-address': req.connection.remoteAddress,
-          'socket-remote': req.socket.remoteAddress,
-          'user-agent': req.headers['user-agent']
+        allIPHeaders: allHeaders,
+        fullHeaders: req.headers,
+        connection: {
+          remoteAddress: req.connection?.remoteAddress,
+          socketRemote: req.socket?.remoteAddress
         }
       }
     });

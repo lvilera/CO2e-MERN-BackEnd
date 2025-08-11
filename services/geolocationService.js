@@ -17,9 +17,8 @@ const getLocationFromIP = (ip) => {
       };
     }
 
-    const geo = geoip.lookup(ip);
-    
-    if (!geo) {
+    // Validate IP format
+    if (!ip || ip === 'Unknown' || ip === '') {
       return {
         city: 'Unknown',
         state: 'Unknown',
@@ -27,11 +26,25 @@ const getLocationFromIP = (ip) => {
       };
     }
 
-    return {
+    const geo = geoip.lookup(ip);
+    
+    if (!geo) {
+      console.log(`No geolocation data found for IP: ${ip}`);
+      return {
+        city: 'Unknown',
+        state: 'Unknown',
+        country: 'Unknown'
+      };
+    }
+
+    const location = {
       city: geo.city || 'Unknown',
       state: geo.region || 'Unknown',
       country: geo.country || 'Unknown'
     };
+
+    console.log(`IP ${ip} resolved to:`, location);
+    return location;
   } catch (error) {
     console.error('Error getting location from IP:', error);
     return {
@@ -48,16 +61,33 @@ const getLocationFromIP = (ip) => {
  * @returns {string} IP address
  */
 const getClientIP = (req) => {
-  // Check various headers for IP address
-  const ip = req.headers['x-forwarded-for'] || 
-             req.headers['x-real-ip'] || 
-             req.connection.remoteAddress || 
-             req.socket.remoteAddress || 
-             req.connection.socket?.remoteAddress ||
-             '127.0.0.1';
+  // Check various headers for IP address (Vercel-specific)
+  let ip = req.headers['x-forwarded-for'] || 
+           req.headers['x-real-ip'] || 
+           req.headers['x-client-ip'] ||
+           req.headers['cf-connecting-ip'] || // Cloudflare
+           req.headers['x-forwarded'] ||
+           req.headers['forwarded-for'] ||
+           req.headers['forwarded'] ||
+           req.connection?.remoteAddress || 
+           req.socket?.remoteAddress || 
+           req.connection?.socket?.remoteAddress ||
+           '127.0.0.1';
   
   // Handle IPv6 format
-  return ip.includes('::ffff:') ? ip.split('::ffff:')[1] : ip;
+  if (ip.includes('::ffff:')) {
+    ip = ip.split('::ffff:')[1];
+  }
+  
+  // Handle multiple IPs in x-forwarded-for (take the first one)
+  if (ip && ip.includes(',')) {
+    ip = ip.split(',')[0].trim();
+  }
+  
+  // Clean up the IP
+  ip = ip.replace(/[^0-9.]/g, '');
+  
+  return ip;
 };
 
 /**
