@@ -13,9 +13,9 @@ const DirectorySchema = new mongoose.Schema({
   imageUrl: { type: String }, // Only for premium
   package: { type: String }, // pro, premium, or undefined for free
   // Location fields for contractor matching
-  city: { type: String, required: true, trim: true },
-  state: { type: String, required: true, trim: true },
-  country: { type: String, required: true, trim: true },
+  city: { type: String, trim: true },
+  state: { type: String, trim: true },
+  country: { type: String, trim: true },
   createdAt: { type: Date, default: Date.now },
 });
 
