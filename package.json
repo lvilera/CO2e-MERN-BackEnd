@@ -5,7 +5,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "node seedLocalContractors.js",
-    "seed:test": "node seedTestData.js"
+    "seed:test": "node seedTestData.js",
+    "seed:pakistan": "node seedPakistanContractors.js"
   },
   "keywords": [],
   "author": "",
