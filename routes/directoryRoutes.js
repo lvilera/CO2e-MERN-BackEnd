@@ -128,11 +128,12 @@ router.get('/local/:city', async (req, res) => {
 router.get('/nearby', async (req, res) => {
   try {
     // Get user's location from IP
-    const userLocation = getUserLocation(req);
+    const userLocation = await getUserLocation(req);
     
     if (!userLocation.city || userLocation.city === 'Unknown') {
       return res.status(400).json({ 
-        error: 'Unable to determine your location. Please search by city name instead.' 
+        error: 'Unable to determine your location. Please search by city name instead.',
+        userLocation
       });
     }
     

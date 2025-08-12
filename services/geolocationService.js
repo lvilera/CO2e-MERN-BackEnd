@@ -1,19 +1,52 @@
 const geoip = require('geoip-lite');
 
 /**
- * Get location information from IP address
+ * Get location information from IP address using multiple services
  * @param {string} ip - IP address to geolocate
  * @returns {Object} Location object with city, state, country
  */
-const getLocationFromIP = (ip) => {
+const getLocationFromIP = async (ip) => {
   try {
     // Handle localhost and private IPs
     if (ip === '127.0.0.1' || ip === 'localhost' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
-      // Return default location for development/testing
+      // Try to get location from a public IP geolocation service
+      try {
+        const response = await fetch('https://ipapi.co/json/');
+        if (response.ok) {
+          const data = await response.json();
+          console.log('IP API response:', data);
+          return {
+            city: data.city || 'Unknown',
+            state: data.region || data.region_code || 'Unknown',
+            country: data.country_name || data.country_code || 'Unknown'
+          };
+        }
+      } catch (apiError) {
+        console.log('IP API failed, trying alternative service:', apiError.message);
+        
+        // Try alternative service
+        try {
+          const altResponse = await fetch('https://ipinfo.io/json');
+          if (altResponse.ok) {
+            const altData = await altResponse.json();
+            console.log('IPInfo response:', altData);
+            return {
+              city: altData.city || 'Unknown',
+              state: altData.region || 'Unknown',
+              country: altData.country || 'Unknown'
+            };
+          }
+        } catch (altError) {
+          console.log('IPInfo also failed:', altError.message);
+        }
+      }
+      
+      // If all external services fail, return unknown instead of hardcoded location
+      console.log('All external IP services failed, returning unknown location');
       return {
-        city: 'New York',
-        state: 'NY',
-        country: 'US'
+        city: 'Unknown',
+        state: 'Unknown',
+        country: 'Unknown'
       };
     }
 
@@ -26,6 +59,23 @@ const getLocationFromIP = (ip) => {
       };
     }
 
+    // Try external IP geolocation service first for better accuracy
+    try {
+      const response = await fetch(`https://ipapi.co/${ip}/json/`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`IP API response for ${ip}:`, data);
+        return {
+          city: data.city || 'Unknown',
+          state: data.region || data.region_code || 'Unknown',
+          country: data.country_name || data.country_code || 'Unknown'
+        };
+      }
+    } catch (apiError) {
+      console.log(`IP API failed for ${ip}, falling back to geoip-lite:`, apiError.message);
+    }
+
+    // Fallback to geoip-lite
     const geo = geoip.lookup(ip);
     
     if (!geo) {
@@ -95,9 +145,9 @@ const getClientIP = (req) => {
  * @param {Object} req - Express request object
  * @returns {Object} Location object
  */
-const getUserLocation = (req) => {
+const getUserLocation = async (req) => {
   const ip = getClientIP(req);
-  return getLocationFromIP(ip);
+  return await getLocationFromIP(ip);
 };
 
 module.exports = {
