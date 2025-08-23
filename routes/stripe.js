@@ -23,8 +23,15 @@ router.get('/health', async (req, res) => {
 });
 
 // Stripe configuration with environment variable support
-const stripeKey = process.env.STRIPE_SECRET_KEY || 'sk_test_51Rj1dnBOoulucdbGDz4brJYHztkuL80jGSKcnQNT46g9P58pbxY36Lg3yWyMDb6Gwgv5Rr3NDfjvB2HyaDlJP7006wnXEtp1';
+const stripeKey = process.env.STRIPE_SECRET_KEY || 'sk_test_51Rj1dnBOoulucdCvbGDz4brJYHztkuL80jGSKcnQNT46g9P58pbxY36Lg3yWyMDb6Gwgv5Rr3NDfjvB2HyaDlJP7006wnXEtp1';
 console.log('Using Stripe key:', stripeKey.substring(0, 20) + '...');
+
+// Check if the key is properly formatted
+if (!stripeKey.startsWith('sk_test_') && !stripeKey.startsWith('sk_live_')) {
+  console.error('❌ Invalid Stripe key format. Key must start with sk_test_ or sk_live_');
+  console.error('Please get your Stripe key from: https://dashboard.stripe.com/apikeys');
+}
+
 const stripe = Stripe(stripeKey);
 
 const jwt = require('jsonwebtoken');
