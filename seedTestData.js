@@ -64,6 +64,72 @@ const testData = [
     city: "Manhattan",
     state: "New York",
     country: "USA"
+  },
+  // Local Contractors test data
+  {
+    company: "NYC Plumbing Pro",
+    email: "info@nycplumbing.com",
+    phone: "(555) 555-1001",
+    address: "100 Plumber Lane",
+    website: "https://nycplumbing.com",
+    socialType: "Facebook",
+    socialLink: "https://facebook.com/nycplumbing",
+    industry: "Local Contractors",
+    contractorType: "plumber",
+    description: "Professional plumbing services in NYC area",
+    package: "pro",
+    city: "New York",
+    state: "New York",
+    country: "USA"
+  },
+  {
+    company: "Elite Electricians LLC",
+    email: "contact@eliteelectric.com",
+    phone: "(555) 555-1002",
+    address: "200 Electric Avenue",
+    website: "https://eliteelectric.com",
+    socialType: "LinkedIn",
+    socialLink: "https://linkedin.com/company/eliteelectric",
+    industry: "Local Contractors",
+    contractorType: "electrician",
+    description: "Certified electrical contractors serving Brooklyn and Manhattan",
+    package: "premium",
+    city: "Brooklyn",
+    state: "New York",
+    country: "USA"
+  },
+  {
+    company: "Custom Carpentry Works",
+    email: "hello@customcarpentry.com",
+    phone: "(555) 555-1003",
+    address: "300 Wood Street",
+    website: "https://customcarpentry.com",
+    socialType: "Instagram",
+    socialLink: "https://instagram.com/customcarpentry",
+    industry: "Local Contractors",
+    contractorType: "carpenter",
+    description: "High-quality custom carpentry and woodworking services",
+    package: "free",
+    city: "Queens",
+    state: "New York",
+    country: "USA"
+  },
+  {
+    company: "Pool Paradise Services",
+    email: "info@poolparadise.com",
+    phone: "(555) 555-1004",
+    address: "400 Pool Plaza",
+    website: "https://poolparadise.com",
+    socialType: "Facebook",
+    socialLink: "https://facebook.com/poolparadise",
+    industry: "Local Contractors",
+    contractorType: "other",
+    customContractorType: "Pool Maintenance",
+    description: "Complete pool cleaning and maintenance services",
+    package: "pro",
+    city: "Manhattan",
+    state: "New York",
+    country: "USA"
   }
 ];
 

@@ -62,6 +62,31 @@ router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
+    // Check for hardcoded admin credentials first
+    if (email === 'admin@admin.com' && password === 'admin123') {
+      const adminToken = jwt.sign(
+        { userId: 'admin', role: 'admin' },
+        JWT_SECRET,
+        { expiresIn: '2d' }
+      );
+
+      res.cookie('token', adminToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+        maxAge: 2 * 24 * 60 * 60 * 1000
+      });
+
+      return res.status(200).json({ 
+        message: 'Admin login successful', 
+        package: 'admin', 
+        userId: 'admin', 
+        token: adminToken,
+        role: 'admin'
+      });
+    }
+
+    // Regular user login
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: 'Invalid credentials' });
 

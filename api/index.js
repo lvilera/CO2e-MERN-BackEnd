@@ -1,11 +1,17 @@
-// Load environment variables
-require('dotenv').config();
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const cardRoutes = require('../routes/cardRoutes');
+
+// Try to fix DNS resolution issues
+const dns = require('dns');
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch (error) {
+  // Fallback for older Node.js versions
+  console.log('⚠️  Using default DNS resolution order');
+}
 
 const authRoutes = require('../routes/auth');
 const newsRoutes = require('../routes/newsRoutes');
@@ -21,9 +27,20 @@ const bookingRoutes = require('../routes/bookingRoutes');
 
 const app = express();
 
+// MongoDB Connection String - Try multiple options with better DNS handling
+const mongoOptions = [
+  "mongodb+srv://aryan:2021cs613@cluster0.o8bu9nt.mongodb.net/myDatabase?retryWrites=true&w=majority&directConnection=false",
+  "mongodb://aryan:2021cs613@ac-hdxyrp8-shard-00-00.o8bu9nt.mongodb.net:27017,ac-hdxyrp8-shard-00-01.o8bu9nt.mongodb.net:27017,ac-hdxyrp8-shard-00-02.o8bu9nt.mongodb.net:27017/myDatabase?ssl=true&replicaSet=atlas-yh1s3n-shard-0&authSource=admin&retryWrites=true&w=majority&directConnection=false",
+  "mongodb+srv://aryan:2021cs613@cluster0.o8bu9nt.mongodb.net/myDatabase?retryWrites=true&w=majority&directConnection=false&serverSelectionTimeoutMS=30000",
+  "mongodb://localhost:27017/myDatabase" // Local fallback
+];
+
+let currentUriIndex = 0;
+const uri = mongoOptions[currentUriIndex];
+
 // CORS middleware - must be before any routes or express.json()
 app.use(cors({
-   origin: ['http://localhost:3000', 'https://co2e.vercel.app'],
+   origin: ['http://localhost:3000', 'https://co2e.vercel.app','https://www.co2eportal.com'],
    credentials: true,
    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
@@ -68,14 +85,73 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/instructors', instructorRoutes);
 app.use('/api/bookings', bookingRoutes);
 
-// MongoDB Connection
-mongoose.connect('mongodb+srv://aryan:2021cs613@cluster0.o8bu9nt.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
-.then(() => {
-  console.log('Connected to MongoDB');
-  const PORT = 5001;
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-  });
-})
-.catch((err) => console.error('MongoDB connection failed:', err));
+// MongoDB Connection with retry logic and DNS handling
+const connectWithRetry = async () => {
+  try {
+    console.log(`🔄 Attempting to connect to MongoDB (option ${currentUriIndex + 1}/${mongoOptions.length})...`);
+    
+    // For Atlas connections, try to resolve DNS first
+    if (currentUriIndex < 3) { // First 3 are Atlas connections
+      const hostname = mongoOptions[currentUriIndex].includes('mongodb+srv://') 
+        ? 'cluster0.o8bu9nt.mongodb.net'
+        : 'ac-hdxyrp8-shard-00-00.o8bu9nt.mongodb.net';
+      
+      try {
+        const { lookup } = require('dns').promises;
+        await lookup(hostname);
+        console.log(`✅ DNS resolution successful for ${hostname}`);
+      } catch (dnsError) {
+        console.log(`⚠️  DNS resolution failed for ${hostname}, trying alternative DNS...`);
+        // Try with Google DNS
+        process.env.DNS_SERVERS = '8.8.8.8,8.8.4.4';
+      }
+    }
+    
+    await mongoose.connect(mongoOptions[currentUriIndex], {
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      minPoolSize: 1,
+      maxIdleTimeMS: 30000,
+      connectTimeoutMS: 30000
+    });
+    
+    console.log('✅ Connected to MongoDB successfully!');
+    
+    // Start server only after successful connection
+    const PORT = 5001;
+    app.listen(PORT, () => {
+      console.log(`🚀 Server is running on port ${PORT}`);
+      console.log(`🌐 Server URL: http://localhost:${PORT}`);
+    });
+    
+  } catch (err) {
+    console.error(`❌ MongoDB connection failed with option ${currentUriIndex + 1}:`, err.message);
+    
+    // Try next connection option
+    currentUriIndex++;
+    
+    if (currentUriIndex < mongoOptions.length) {
+      console.log(`🔄 Trying next connection option in 3 seconds...`);
+      setTimeout(connectWithRetry, 3000);
+    } else {
+      console.log('❌ All MongoDB connection options failed!');
+      console.log('💡 Troubleshooting tips:');
+      console.log('1. Check your internet connection');
+      console.log('2. Verify MongoDB Atlas is accessible');
+      console.log('3. Try using a different DNS server (like 8.8.8.8)');
+      console.log('4. Check if your IP is whitelisted in MongoDB Atlas');
+      
+      // Start server anyway for development (without database)
+      const PORT = 5001;
+      app.listen(PORT, () => {
+        console.log(`🚀 Server is running on port ${PORT} (NO DATABASE)`);
+        console.log(`⚠️  Note: Database features will not work!`);
+      });
+    }
+  }
+};
+
+// Start connection process
+connectWithRetry();
 
