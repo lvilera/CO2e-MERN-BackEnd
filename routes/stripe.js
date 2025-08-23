@@ -2,9 +2,30 @@ const express = require('express');
 const router = express.Router();
 const Stripe = require('stripe');
 
-// Stripe configuration with fallback to hardcoded key for now
-// In production, use: process.env.STRIPE_SECRET_KEY
-const stripe = Stripe('sk_test_51Rj1dnBOoulucdbGDz4brJYHztkuL80jGSKcnQNT46g9P58pbxY36Lg3yWyMDb6Gwgv5Rr3NDfjvB2HyaDlJP7006wnXEtp1');
+// Health check endpoint to test Stripe connection
+router.get('/health', async (req, res) => {
+  try {
+    // Test Stripe connection by getting account info
+    const account = await stripe.accounts.retrieve();
+    res.json({ 
+      status: 'Stripe is working', 
+      account: account.id,
+      stripeKey: process.env.STRIPE_SECRET_KEY ? 'Using env var' : 'Using fallback key'
+    });
+  } catch (error) {
+    console.error('Stripe health check failed:', error);
+    res.status(500).json({ 
+      status: 'Stripe connection failed', 
+      error: error.message,
+      stripeKey: process.env.STRIPE_SECRET_KEY ? 'Using env var' : 'Using fallback key'
+    });
+  }
+});
+
+// Stripe configuration with environment variable support
+const stripeKey = process.env.STRIPE_SECRET_KEY || 'sk_test_51Rj1dnBOoulucdbGDz4brJYHztkuL80jGSKcnQNT46g9P58pbxY36Lg3yWyMDb6Gwgv5Rr3NDfjvB2HyaDlJP7006wnXEtp1';
+console.log('Using Stripe key:', stripeKey.substring(0, 20) + '...');
+const stripe = Stripe(stripeKey);
 
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
@@ -25,8 +46,11 @@ const transporter = nodemailer.createTransport({
 
 // POST /api/create-checkout-session
 router.post('/create-checkout-session', async (req, res) => {
+  console.log('Creating checkout session with cart:', req.body);
+  
   const { cart } = req.body;
   if (!cart || !Array.isArray(cart) || cart.length === 0) {
+    console.log('Invalid cart data:', cart);
     return res.status(400).json({ error: 'Cart is empty or invalid.' });
   }
 
@@ -42,18 +66,41 @@ router.post('/create-checkout-session', async (req, res) => {
       quantity: item.quantity || 1,
     }));
 
+    // Get the origin from the request to make URLs dynamic
+    const origin = req.get('origin') || 'http://localhost:3000';
+    console.log('Creating Stripe session with origin:', origin);
+    console.log('Line items:', line_items);
+    
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items,
       mode: 'payment',
-      success_url: 'https://www.co2eportal.com/success',
-      cancel_url: 'https://www.co2eportal.com/cancel',
+      success_url: `${origin}/success`,
+      cancel_url: `${origin}/cancel`,
     });
+    
+    console.log('Stripe session created successfully:', session.id);
 
     res.json({ url: session.url });
   } catch (err) {
     console.error('Stripe error:', err);
-    res.status(500).json({ error: 'Failed to create Stripe session.' });
+    console.error('Stripe error details:', {
+      message: err.message,
+      type: err.type,
+      code: err.code,
+      statusCode: err.statusCode
+    });
+    
+    // Provide more specific error messages
+    if (err.type === 'StripeCardError') {
+      res.status(400).json({ error: 'Card error: ' + err.message });
+    } else if (err.type === 'StripeInvalidRequestError') {
+      res.status(400).json({ error: 'Invalid request: ' + err.message });
+    } else if (err.type === 'StripeAPIError') {
+      res.status(500).json({ error: 'Stripe API error: ' + err.message });
+    } else {
+      res.status(500).json({ error: 'Failed to create Stripe session: ' + err.message });
+    }
   }
 });
 
