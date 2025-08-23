@@ -4,7 +4,7 @@ const Stripe = require('stripe');
 
 // Stripe configuration with fallback to hardcoded key for now
 // In production, use: process.env.STRIPE_SECRET_KEY
-const stripe = Stripe('');
+const stripe = Stripe('sk_test_51Rj1dnBOoulucdbGDz4brJYHztkuL80jGSKcnQNT46g9P58pbxY36Lg3yWyMDb6Gwgv5Rr3NDfjvB2HyaDlJP7006wnXEtp1');
 
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
@@ -15,7 +15,13 @@ const nodemailer = require('nodemailer');
 const JWT_SECRET = 'this_is_a_secure_jwt_secret_123456';
 
 // Configure nodemailer (reuse from contactRoutes.js)
-
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'aryanarshad5413@gmail.com',
+    pass: 'gvyqmapsqsrrtwjm',
+  },
+});
 
 // POST /api/create-checkout-session
 router.post('/create-checkout-session', async (req, res) => {
