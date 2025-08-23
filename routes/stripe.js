@@ -4,7 +4,7 @@ const Stripe = require('stripe');
 
 // Stripe configuration with fallback to hardcoded key for now
 // In production, use: process.env.STRIPE_SECRET_KEY
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_51Rj1dnBOoulucdbGDz4brJYHztkuL80jGSKcnQNT46g9P58pbxY36Lg3yWyMDb6Gwgv5Rr3NDfjvB2HyaDlJP7006wnXEtp1');
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY || '');
 
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
