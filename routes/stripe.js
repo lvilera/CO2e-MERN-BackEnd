@@ -73,17 +73,19 @@ router.post('/create-checkout-session', async (req, res) => {
       quantity: item.quantity || 1,
     }));
 
-    // Get the origin from the request to make URLs dynamic
-    const origin = req.get('origin') || 'http://localhost:3000';
-    console.log('Creating Stripe session with origin:', origin);
+    // Use the actual website domain for success/cancel URLs
+    const successUrl = 'https://www.co2eportal.com/success';
+    const cancelUrl = 'https://www.co2eportal.com/cancel';
+    console.log('Creating Stripe session with success URL:', successUrl);
+    console.log('Creating Stripe session with cancel URL:', cancelUrl);
     console.log('Line items:', line_items);
     
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items,
       mode: 'payment',
-      success_url: `${origin}/success`,
-      cancel_url: `${origin}/cancel`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
     });
     
     console.log('Stripe session created successfully:', session.id);
