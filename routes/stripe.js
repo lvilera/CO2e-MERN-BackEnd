@@ -15,13 +15,7 @@ const nodemailer = require('nodemailer');
 const JWT_SECRET = 'this_is_a_secure_jwt_secret_123456';
 
 // Configure nodemailer (reuse from contactRoutes.js)
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: 'aryanarshad5413@gmail.com',
-    pass: 'gvyqmapsqsrrtwjm',
-  },
-});
+
 
 // POST /api/create-checkout-session
 router.post('/create-checkout-session', async (req, res) => {
