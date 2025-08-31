@@ -60,6 +60,7 @@ router.post('/signup', async (req, res) => {
 // Login Route
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
+  console.log('🔐 Login attempt for email:', email);
 
   try {
     // Check for hardcoded admin credentials first
@@ -87,19 +88,31 @@ router.post('/login', async (req, res) => {
     }
 
     // Regular user login
+    console.log('🔍 Looking for user with email:', email);
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+    if (!user) {
+      console.log('❌ User not found for email:', email);
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+    console.log('✅ User found:', user.email);
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
-    // Update user's location on login if not already set
+    // Update user's location on login if not already set (non-blocking)
     if (!user.city || user.city === 'Unknown') {
-      const userLocation = getUserLocation(req);
-      user.city = userLocation.city;
-      user.state = userLocation.state;
-      user.country = userLocation.country;
-      await user.save();
+      try {
+        const userLocation = await getUserLocation(req);
+        if (userLocation && userLocation.city && userLocation.city !== 'Unknown') {
+          user.city = userLocation.city;
+          user.state = userLocation.state;
+          user.country = userLocation.country;
+          await user.save();
+        }
+      } catch (locationError) {
+        console.error('Location detection failed, continuing with login:', locationError.message);
+        // Don't fail login if location detection fails
+      }
     }
 
     const token = jwt.sign(
@@ -128,8 +141,12 @@ router.post('/login', async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Login route error:', err);
+    console.error('Error stack:', err.stack);
+    res.status(500).json({ 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    });
   }
 });
 
@@ -174,9 +191,14 @@ router.put('/update-location', async (req, res) => {
 // Instructor Login
 router.post('/instructor-login', async (req, res) => {
   const { email, password } = req.body;
+  console.log('👨‍🏫 Instructor login attempt for email:', email);
   try {
     const instructor = await Instructor.findOne({ email });
-    if (!instructor) return res.status(400).json({ message: 'Invalid credentials' });
+    if (!instructor) {
+      console.log('❌ Instructor not found for email:', email);
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+    console.log('✅ Instructor found:', instructor.email);
     const isMatch = await require('bcryptjs').compare(password, instructor.password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
     // Set JWT cookie for instructor

@@ -41,7 +41,18 @@ const uri = mongoOptions[currentUriIndex];
 
 // CORS middleware - must be before any routes or express.json()
 app.use(cors({
-   origin: ['http://localhost:3000', 'http://localhost:3001', 'https://co2e.vercel.app','https://www.co2eportal.com'],
+   origin: [
+     'http://localhost:3000', 
+     'http://localhost:3001', 
+     'https://co2e.vercel.app',
+     'https://www.co2eportal.com',
+     // Add common frontend deployment patterns
+     /https:\/\/.*\.vercel\.app$/,
+     /https:\/\/.*\.netlify\.app$/,
+     /https:\/\/.*\.herokuapp\.com$/,
+     // For debugging - allow any HTTPS origin
+     /https:\/\/.*/
+   ],
    credentials: true,
    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
@@ -51,6 +62,9 @@ app.use(cors({
 
 app.use(express.json());
 app.use(cookieParser());
+
+// Display Stripe key for debugging
+console.log('Using Stripe key:', process.env.STRIPE_SECRET_KEY?.substring(0, 20) + '...');
 
 // Middleware to handle Authorization headers for iPhone Safari
 app.use((req, res, next) => {
@@ -121,7 +135,7 @@ const connectWithRetry = async () => {
     console.log('✅ Connected to MongoDB successfully!');
     
     // Start server only after successful connection
-    const PORT = 5001;
+    const PORT = process.env.PORT || 5001;
     app.listen(PORT, () => {
       console.log(`🚀 Server is running on port ${PORT}`);
       console.log(`🌐 Server URL: http://localhost:${PORT}`);
@@ -145,7 +159,7 @@ const connectWithRetry = async () => {
       console.log('4. Check if your IP is whitelisted in MongoDB Atlas');
       
       // Start server anyway for development (without database)
-      const PORT = 5001;
+      const PORT = process.env.PORT || 5001;
       app.listen(PORT, () => {
         console.log(`🚀 Server is running on port ${PORT} (NO DATABASE)`);
         console.log(`⚠️  Note: Database features will not work!`);
@@ -157,3 +171,4 @@ const connectWithRetry = async () => {
 // Start connection process
 connectWithRetry();
 
+module.exports = app; 
