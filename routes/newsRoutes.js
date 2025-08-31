@@ -125,7 +125,7 @@ router.get('/', async (req, res) => {
     console.error('❌ Error fetching news:', error);
     res.status(500).json({ error: error.message });
   }
- });
+});
 
 // DELETE
 router.delete('/:id', async (req, res) => {

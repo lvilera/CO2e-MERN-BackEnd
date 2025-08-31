@@ -3,7 +3,9 @@ const multer = require('multer');
 const XLSX = require('xlsx');
 const csv = require('csv-parser');
 const { cloudinary } = require('../cloudinary');
-const Directory = require('../models/Directory');
+const Directory = require('../models/Directory'); // Keep original for backward compatibility
+const AdminDirectory = require('../models/AdminDirectory'); // Admin bulk uploads
+const UserDirectory = require('../models/UserDirectory'); // User form submissions
 const UploadedFile = require('../models/UploadedFile');
 const FeaturedListing = require('../models/FeaturedListing');
 const { getUserLocation } = require('../services/geolocationService');
@@ -12,17 +14,25 @@ const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// POST: Add a directory listing
+// POST: Add a directory listing (User form submission)
 router.post('/', upload.single('image'), async (req, res) => {
   try {
+    console.log('🎯 User Directory form submission received');
+    console.log('📋 Form data:', req.body);
+    console.log('📁 File uploaded:', req.file ? 'Yes' : 'No');
+    
     const { company, email, phone, address, website, socialType, socialLink, industry, description, userPackage, city, state, country, contractorType, customContractorType } = req.body;
-    // Check if a listing already exists for this email
-    const existing = await Directory.findOne({ email });
-    if (existing) {
+    
+    console.log(`👤 User package: ${userPackage}`);
+    
+    // Check if a listing already exists for this email in UserDirectory
+    const existingUser = await UserDirectory.checkDuplicate(email);
+    if (existingUser) {
       return res.status(409).json({ error: 'You have already filled the form.' });
     }
     let imageUrl = '';
     if (userPackage === 'premium' && req.file) {
+      console.log('🖼️ Premium user uploading image to Cloudinary...');
       // Upload image to cloudinary
       const result = await new Promise((resolve, reject) => {
         cloudinary.uploader.upload_stream(
@@ -37,10 +47,13 @@ router.post('/', upload.single('image'), async (req, res) => {
         ).end(req.file.buffer);
       });
       imageUrl = result.secure_url;
-      // Also save to FeaturedListing
-      await new FeaturedListing({ imageUrl }).save();
+      console.log(`✅ Image uploaded to: ${imageUrl}`);
+      console.log('🚫 NOT adding to featured listings (as required)');
+      // Premium member images now show in directory only, not in featured section
+      // Removed: await new FeaturedListing({ imageUrl }).save();
     }
-    const directory = new Directory({
+    // Create UserDirectory entry
+    const userDirectory = new UserDirectory({
       company,
       email,
       phone,
@@ -57,15 +70,20 @@ router.post('/', upload.single('image'), async (req, res) => {
       country,
       contractorType,
       customContractorType,
+      submissionMethod: 'form',
+      userEmail: email // Track the submitter
     });
-    await directory.save();
-    res.status(201).json(directory);
+    await userDirectory.save();
+    console.log(`💾 User Directory entry saved for: ${company}`);
+    console.log('🎉 User Directory submission completed successfully');
+    res.status(201).json(userDirectory);
   } catch (err) {
+    console.error('❌ Directory submission error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET: All directory listings
+// GET: All directory listings (Combined from both UserDirectory and AdminDirectory)
 router.get('/', async (req, res) => {
   try {
     // Add CORS headers specifically for iPhone Safari
@@ -79,21 +97,24 @@ router.get('/', async (req, res) => {
       return res.status(200).end();
     }
     
-    // For iPhone Safari, allow access without authentication for directory listings
-    const userAgent = req.headers['user-agent'] || '';
-    const isIPhone = /iPad|iPhone|iPod/.test(userAgent);
-    const isSafari = /Safari/.test(userAgent) && !/Chrome/.test(userAgent);
+    // Fetch from both models
+    const userListings = await UserDirectory.find({ status: 'approved' }).sort({ createdAt: -1 });
+    const adminListings = await AdminDirectory.find({ validationStatus: { $in: ['validated', 'pending'] } }).sort({ createdAt: -1 });
     
-    if (isIPhone && isSafari) {
-      console.log('iPhone Safari detected - allowing directory access without authentication');
-      // Return listings immediately without any authentication check
-      const listings = await Directory.find().sort({ createdAt: -1 });
-      return res.json(listings);
-    }
+    // Combine and add source information
+    const combinedListings = [
+      ...userListings.map(listing => ({ ...listing.toObject(), source: 'user' })),
+      ...adminListings.map(listing => ({ ...listing.toObject(), source: 'admin' }))
+    ];
     
-    const listings = await Directory.find().sort({ createdAt: -1 });
-    res.json(listings);
+    // Sort combined results by creation date
+    combinedListings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    console.log(`📊 Returned ${userListings.length} user listings + ${adminListings.length} admin listings = ${combinedListings.length} total`);
+    
+    res.json(combinedListings);
   } catch (err) {
+    console.error('Error fetching directory listings:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -158,7 +179,7 @@ router.get('/nearby', async (req, res) => {
   }
 });
 
-// GET: Search contractors by industry and location
+// GET: Search contractors by industry and location (from both models)
 router.get('/search', async (req, res) => {
   try {
     const { industry, city, state, country } = req.query;
@@ -179,20 +200,35 @@ router.get('/search', async (req, res) => {
       query.country = { $regex: new RegExp(country, 'i') };
     }
     
-    const results = await Directory.find(query).sort({ createdAt: -1 });
+    // Search both models
+    const userResults = await UserDirectory.find({ ...query, status: 'approved' }).sort({ createdAt: -1 });
+    const adminResults = await AdminDirectory.find({ ...query, validationStatus: { $in: ['validated', 'pending'] } }).sort({ createdAt: -1 });
+    
+    // Combine results
+    const combinedResults = [
+      ...userResults.map(result => ({ ...result.toObject(), source: 'user' })),
+      ...adminResults.map(result => ({ ...result.toObject(), source: 'admin' }))
+    ];
+    
+    // Sort combined results by creation date
+    combinedResults.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     
     res.json({
       success: true,
       filters: { industry, city, state, country },
-      count: results.length,
-      contractors: results
+      count: combinedResults.length,
+      contractors: combinedResults,
+      breakdown: {
+        userResults: userResults.length,
+        adminResults: adminResults.length
+      }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET: Unique categories from directory listings
+// GET: Unique categories from directory listings (from both models)
 router.get('/categories', async (req, res) => {
   try {
     // Add CORS headers for iPhone Safari
@@ -201,18 +237,30 @@ router.get('/categories', async (req, res) => {
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     res.header('Access-Control-Allow-Credentials', 'true');
     
-    const categories = await Directory.distinct('industry');
-    res.json(categories.filter(category => category && category.trim() !== ''));
+    // Get categories from both models
+    const userCategories = await UserDirectory.distinct('industry', { status: 'approved' });
+    const adminCategories = await AdminDirectory.distinct('industry', { validationStatus: { $in: ['validated', 'pending'] } });
+    
+    // Combine and deduplicate
+    const allCategories = [...new Set([...userCategories, ...adminCategories])];
+    
+    res.json(allCategories.filter(category => category && category.trim() !== ''));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET: Unique cities from directory listings
+// GET: Unique cities from directory listings (from both models)
 router.get('/cities', async (req, res) => {
   try {
-    const cities = await Directory.distinct('city');
-    res.json(cities.filter(city => city && city.trim() !== '').sort());
+    // Get cities from both models
+    const userCities = await UserDirectory.distinct('city', { status: 'approved' });
+    const adminCities = await AdminDirectory.distinct('city', { validationStatus: { $in: ['validated', 'pending'] } });
+    
+    // Combine and deduplicate
+    const allCities = [...new Set([...userCities, ...adminCities])];
+    
+    res.json(allCities.filter(city => city && city.trim() !== '').sort());
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -255,6 +303,42 @@ router.get('/contractor-types', async (req, res) => {
     res.json(uniqueTypes);
   } catch (err) {
     console.error('Error fetching contractor types:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET: Unique contractor categories from Local Contractors (from CATEGORY column)
+router.get('/local-contractor-categories', async (req, res) => {
+  try {
+    // Get categories from both UserDirectory and AdminDirectory for Local Contractors
+    const userCategories = await UserDirectory.distinct('contractorType', { 
+      $and: [
+        { status: 'approved' },
+        { $or: [{ industry: 'Local Contractors' }, { displayCategory: 'Local Contractors' }] },
+        { contractorType: { $exists: true, $ne: '' } }
+      ]
+    });
+    
+    const adminCategories = await AdminDirectory.distinct('contractorType', { 
+      $and: [
+        { validationStatus: { $in: ['validated', 'pending'] } },
+        { $or: [{ industry: 'Local Contractors' }, { displayCategory: 'Local Contractors' }] },
+        { contractorType: { $exists: true, $ne: '' } }
+      ]
+    });
+    
+    // Combine and deduplicate
+    const allCategories = [...new Set([...userCategories, ...adminCategories])];
+    
+    // Filter out empty strings and sort
+    const filteredCategories = allCategories
+      .filter(category => category && category.trim() !== '')
+      .sort();
+    
+    console.log('Local Contractor categories found:', filteredCategories);
+    res.json(filteredCategories);
+  } catch (err) {
+    console.error('Error fetching local contractor categories:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -421,18 +505,21 @@ router.post('/test-parse', upload.single('file'), async (req, res) => {
   }
 });
 
-// POST: Bulk upload directory listings from Excel/CSV file
+// POST: Bulk upload directory listings from Excel/CSV file (Admin uploads)
 router.post('/bulk-upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    console.log('🎯 Admin bulk upload started');
+    
     // Use var instead of let/const to avoid any variable redeclaration issues
     var fileBuffer = req.file.buffer;
     var fileName = req.file.originalname;
     var fileExtension = fileName.split('.').pop().toLowerCase();
     var data = [];
+    var uploadBatchId = new Date().getTime().toString(); // Unique batch ID
     
     // Parse file based on extension
     if (fileExtension === 'csv') {
@@ -534,6 +621,10 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
         var phone = currentRow['PHONE NUMBER'] || currentRow['PHONE_NUMBER'] || currentRow.phone || currentRow.Phone || currentRow['Phone Number'] || '';
         var contact = currentRow.CONTACT || currentRow.contact || currentRow.Contact || currentRow.address || currentRow.Address || '';
         var website = currentRow.WEBSITE || currentRow.website || currentRow.Website || '';
+        var imageUrl = currentRow.IMAGE || currentRow.Images || currentRow.images || currentRow['IMAGE URL'] || currentRow['IMAGE_URL'] || currentRow.image || currentRow.imageUrl || currentRow.Image || '';
+        var socialLink = currentRow.LINK || currentRow.link || currentRow.Link || currentRow['SOCIAL LINK'] || currentRow['social_link'] || '';
+        var socialType = currentRow['SOCIAL MEDIA'] || currentRow['SOCIAL_MEDIA'] || currentRow.socialMedia || currentRow['social media'] || currentRow.socialType || '';
+        var userPackage = currentRow.USER || currentRow.user || currentRow.User || currentRow.PACKAGE || currentRow.package || '';
         var category = currentRow.CATEGORY || currentRow.category || currentRow.Category || currentRow.industry || currentRow.Industry || '';
         var subcategory = currentRow['SUB-CATEGORY2'] || currentRow['SUB-CATEGORY'] || currentRow.subcategory || currentRow.Subcategory || currentRow.description || currentRow.Description || '';
         
@@ -553,13 +644,23 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
           console.log('Subcategory found:', subcategory);
         }
         
-        console.log('Mapped values - Company:', company, 'Email:', email, 'Phone:', phone, 'Category:', category);
+        console.log('Mapped values - Company:', company, 'Email:', email, 'Phone:', phone, 'Category:', category, 'Image URL:', imageUrl, 'Social Type:', socialType, 'Social Link:', socialLink, 'Package:', userPackage);
         
         // Clean up any trailing/leading spaces in key fields
         email = email.trim();
         company = company.trim();
         phone = phone.trim();
         category = category.trim();
+        imageUrl = imageUrl ? imageUrl.trim() : '';
+        socialLink = socialLink ? socialLink.trim() : '';
+        socialType = socialType ? socialType.trim().toLowerCase() : '';
+        userPackage = userPackage ? userPackage.trim().toLowerCase() : 'free';
+        
+        // Validate and normalize package type
+        if (!['free', 'pro', 'premium'].includes(userPackage)) {
+          console.log('Invalid package type "' + userPackage + '", defaulting to "free"');
+          userPackage = 'free';
+        }
         
         // ALWAYS use the tab name for categorization, ignore the CATEGORY field from file
         var tabName = currentRow._sheet || '';
@@ -583,33 +684,44 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
           console.log('Auto-setting contractor type for Local Contractor from CATEGORY field:', contractorType);
         }
         
-        var directoryData = {
+        var adminDirectoryData = {
           company: company,
           email: email,
           phone: phone,
           address: contact,
           website: website,
+          socialType: socialType, // Social media platform from SOCIAL MEDIA column
+          socialLink: socialLink, // Social media URL from LINK column
+          imageUrl: imageUrl, // Image URL from uploaded file
+          package: userPackage, // Package type from USER column
           industry: category,
           displayCategory: displayCategory, // Add display category for frontend filtering
           description: subcategory,
           city: '',
           state: '',
           country: '',
-          package: 'free',
           contractorType: contractorType, // Add contractor type for Local Contractors
           customContractorType: customContractorType, // Add custom contractor type
+          // Admin-specific fields
+          uploadBatch: uploadBatchId,
+          originalFileName: fileName,
+          sheetName: currentRow._sheet || 'Unknown',
+          rowNumber: i + 2, // Excel row number (accounting for header)
+          uploadedBy: 'admin',
+          originalData: currentRow, // Store original row data
+          validationStatus: 'pending',
           createdAt: new Date()
         };
         
-        console.log('Directory data prepared:', directoryData);
-        console.log('displayCategory field value:', directoryData.displayCategory);
+        console.log('Admin Directory data prepared:', adminDirectoryData);
+        console.log('displayCategory field value:', adminDirectoryData.displayCategory);
 
         // Validate required fields
         var missingFields = [];
-        if (!directoryData.company || directoryData.company.trim() === '') missingFields.push('company');
-        if (!directoryData.email || directoryData.email.trim() === '') missingFields.push('email');
-        if (!directoryData.phone || directoryData.phone.trim() === '') missingFields.push('phone');
-        if (!directoryData.industry || directoryData.industry.trim() === '') missingFields.push('industry');
+        if (!adminDirectoryData.company || adminDirectoryData.company.trim() === '') missingFields.push('company');
+        if (!adminDirectoryData.email || adminDirectoryData.email.trim() === '') missingFields.push('email');
+        if (!adminDirectoryData.phone || adminDirectoryData.phone.trim() === '') missingFields.push('phone');
+        if (!adminDirectoryData.industry || adminDirectoryData.industry.trim() === '') missingFields.push('industry');
         
         if (missingFields.length > 0) {
           console.log('Row ' + (i + 2) + ' has missing fields:', missingFields);
@@ -618,27 +730,28 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
             sheet: currentRow._sheet || 'Unknown',
             error: 'Missing required fields: ' + missingFields.join(', '),
             data: currentRow,
-            mappedData: directoryData
+            mappedData: adminDirectoryData
           });
           continue;
         }
 
-        // Duplicate email check removed - allow all emails to be processed
-        console.log('Processing row ' + (i + 2) + ' - duplicate emails allowed');
+        // Duplicate email check removed - allow all emails to be processed for admin uploads
+        console.log('Processing row ' + (i + 2) + ' - duplicate emails allowed for admin uploads');
 
-        // Create new directory entry
-        console.log('Creating new directory entry for row ' + (i + 2));
-        var directory = new Directory(directoryData);
-        console.log('Directory object created, saving...');
-        await directory.save();
-        console.log('Directory saved successfully for row ' + (i + 2));
+        // Create new admin directory entry
+        console.log('Creating new AdminDirectory entry for row ' + (i + 2));
+        var adminDirectory = new AdminDirectory(adminDirectoryData);
+        console.log('AdminDirectory object created, saving...');
+        await adminDirectory.save();
+        console.log('AdminDirectory saved successfully for row ' + (i + 2));
         
         results.push({
           row: i + 2,
           sheet: currentRow._sheet || 'Unknown',
-          company: directoryData.company,
-          email: directoryData.email,
-          status: 'success'
+          company: adminDirectoryData.company,
+          email: adminDirectoryData.email,
+          status: 'success',
+          batchId: uploadBatchId
         });
         
         uploadedCount++;
@@ -719,16 +832,136 @@ router.get('/upload-history', async (req, res) => {
   }
 });
 
-// DELETE: Clear all directory listings (for testing purposes)
-router.delete('/clear-all', async (req, res) => {
+// GET: Admin directory listings (AdminDirectory model only)
+router.get('/admin-uploads', async (req, res) => {
   try {
-    const result = await Directory.deleteMany({});
-    // Also clear upload history
-    await UploadedFile.deleteMany({});
+    const { batchId, status } = req.query;
+    let query = {};
+    
+    if (batchId) {
+      query.uploadBatch = batchId;
+    }
+    if (status) {
+      query.validationStatus = status;
+    }
+    
+    const adminListings = await AdminDirectory.find(query).sort({ createdAt: -1 });
     res.json({
       success: true,
-      message: `Cleared ${result.deletedCount} directory listings and upload history`,
-      deletedCount: result.deletedCount
+      count: adminListings.length,
+      listings: adminListings
+    });
+  } catch (err) {
+    console.error('Error fetching admin uploads:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET: User directory listings (UserDirectory model only)
+router.get('/user-submissions', async (req, res) => {
+  try {
+    const { status, package: userPackage } = req.query;
+    let query = {};
+    
+    if (status) {
+      query.status = status;
+    }
+    if (userPackage) {
+      query.package = userPackage;
+    }
+    
+    const userListings = await UserDirectory.find(query).sort({ createdAt: -1 });
+    res.json({
+      success: true,
+      count: userListings.length,
+      listings: userListings
+    });
+  } catch (err) {
+    console.error('Error fetching user submissions:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT: Update admin directory validation status
+router.put('/admin-uploads/:id/validate', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { validationStatus, validationErrors } = req.body;
+    
+    const updated = await AdminDirectory.findByIdAndUpdate(
+      id,
+      { 
+        validationStatus,
+        validationErrors: validationErrors || [],
+        updatedAt: new Date()
+      },
+      { new: true }
+    );
+    
+    if (!updated) {
+      return res.status(404).json({ error: 'Admin directory entry not found' });
+    }
+    
+    res.json({
+      success: true,
+      message: `Validation status updated to ${validationStatus}`,
+      listing: updated
+    });
+  } catch (err) {
+    console.error('Error updating validation status:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET: Debug endpoint to check stored data
+router.get('/debug-data', async (req, res) => {
+  try {
+    const userListings = await UserDirectory.find().limit(5);
+    const adminListings = await AdminDirectory.find().limit(5);
+    
+    res.json({
+      success: true,
+      debug: {
+        userListings: userListings.map(l => ({
+          company: l.company,
+          package: l.package,
+          imageUrl: l.imageUrl,
+          socialType: l.socialType,
+          socialLink: l.socialLink
+        })),
+        adminListings: adminListings.map(l => ({
+          company: l.company,
+          package: l.package,
+          imageUrl: l.imageUrl,
+          socialType: l.socialType,
+          socialLink: l.socialLink
+        }))
+      }
+    });
+  } catch (err) {
+    console.error('Debug data error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE: Clear all directory listings (both models for testing purposes)
+router.delete('/clear-all', async (req, res) => {
+  try {
+    const userResult = await UserDirectory.deleteMany({});
+    const adminResult = await AdminDirectory.deleteMany({});
+    // Also clear upload history
+    await UploadedFile.deleteMany({});
+    
+    const totalDeleted = userResult.deletedCount + adminResult.deletedCount;
+    
+    res.json({
+      success: true,
+      message: `Cleared ${totalDeleted} directory listings (${userResult.deletedCount} user + ${adminResult.deletedCount} admin) and upload history`,
+      deletedCount: totalDeleted,
+      details: {
+        userListings: userResult.deletedCount,
+        adminListings: adminResult.deletedCount
+      }
     });
   } catch (err) {
     console.error('Clear all error:', err);

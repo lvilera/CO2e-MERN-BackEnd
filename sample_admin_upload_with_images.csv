@@ -1,0 +1,6 @@
+COMPANY,EMAIL,PHONE NUMBER,CONTACT,WEBSITE,CATEGORY,SUB-CATEGORY2,IMAGE,LINK,SOCIAL MEDIA,USER
+"ABC Construction Ltd","contact@abcconstruction.com","555-0101","123 Main St, New York, NY","https://abcconstruction.com","Construction","Residential Building","https://example.com/images/abc-construction-logo.jpg","https://facebook.com/abcconstruction","facebook","premium"
+"Tech Solutions Inc","info@techsolutions.com","555-0102","456 Tech Ave, San Francisco, CA","https://techsolutions.com","Technology","Software Development","https://example.com/images/tech-solutions-logo.png","https://linkedin.com/company/techsolutions","linkedin","pro"
+"Green Energy Corp","hello@greenenergy.com","555-0103","789 Solar Blvd, Austin, TX","https://greenenergy.com","Energy","Solar Panels","","https://twitter.com/greenenergy","twitter","free"
+"Local Plumber Joe","joe@localplumber.com","555-0104","321 Pipe St, Chicago, IL","","Plumbing","Emergency Repairs","https://example.com/images/plumber-joe-photo.jpg","https://instagram.com/localplumberjoe","instagram","premium"
+"Marketing Pros","team@marketingpros.com","555-0105","654 Brand Lane, Miami, FL","https://marketingpros.com","Marketing","Digital Marketing","https://example.com/images/marketing-pros-team.jpg","https://youtube.com/marketingpros","youtube","pro" 

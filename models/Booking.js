@@ -1,19 +1,46 @@
 const mongoose = require('mongoose');
 
-const bookingSchema = new mongoose.Schema({
+const BookingSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  date: { type: String, required: true }, // YYYY-MM-DD
+  instructor: { type: mongoose.Schema.Types.ObjectId, ref: 'Instructor' },
+  courseName: { type: String, required: true },
+  date: { type: Date, required: true },
+  start: { type: String, required: true }, // e.g., "09:00"
+  end: { type: String, required: true }, // e.g., "17:00"
   city: { type: String, required: true },
   area: { type: String, required: true },
-  status: { type: String, enum: ['on-hold', 'confirmed', 'cancelled'], default: 'on-hold' },
-  instructor: { type: mongoose.Schema.Types.ObjectId, ref: 'Instructor', default: null },
+  status: { type: String, enum: ['on-hold', 'confirmed', 'completed', 'cancelled'], default: 'on-hold' },
+  
+  // Notification tracking
   notifiedInstructors: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Instructor' }],
-  courseName: { type: String, required: true },
-  durationWeeks: { type: Number, required: true },
-  paid: { type: Boolean, default: false },
-  start: { type: String }, // e.g., '09:00'
-  end: { type: String },   // e.g., '12:00'
-  createdAt: { type: Date, default: Date.now }
+  
+  // Payment information
+  paymentStatus: { type: String, enum: ['pending', 'paid', 'refunded'], default: 'pending' },
+  paymentIntentId: { type: String }, // Stripe payment intent ID
+  amount: { type: Number }, // Amount in cents
+  currency: { type: String, default: 'usd' },
+  
+  // Additional details
+  notes: { type: String },
+  duration: { type: Number, default: 8 }, // Duration in hours
+  durationWeeks: { type: Number, default: 1 }, // Duration in weeks
+  
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('Booking', bookingSchema); 
+// Index for efficient queries
+BookingSchema.index({ user: 1 });
+BookingSchema.index({ instructor: 1 });
+BookingSchema.index({ status: 1 });
+BookingSchema.index({ date: 1 });
+BookingSchema.index({ city: 1, area: 1 });
+BookingSchema.index({ paymentStatus: 1 });
+
+// Pre-save hook to update the updatedAt field
+BookingSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+module.exports = mongoose.model('Booking', BookingSchema); 

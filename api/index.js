@@ -20,6 +20,7 @@ const courseRoutes = require('../routes/courseRoutes');
 const featuredListingRoutes = require('../routes/featuredListingRoutes');
 const stripeRoutes = require('../routes/stripe');
 const directoryRoutes = require('../routes/directoryRoutes');
+const serviceImageRoutes = require('../routes/serviceImageRoutes');
 const newsletterRoutes = require('../routes/newsletterRoutes');
 const contactRoutes = require('../routes/contactRoutes');
 const instructorRoutes = require('../routes/instructor');
@@ -40,7 +41,7 @@ const uri = mongoOptions[currentUriIndex];
 
 // CORS middleware - must be before any routes or express.json()
 app.use(cors({
-   origin: ['http://localhost:3000', 'https://co2e.vercel.app','https://www.co2eportal.com'],
+   origin: ['http://localhost:3000', 'http://localhost:3001', 'https://co2e.vercel.app','https://www.co2eportal.com'],
    credentials: true,
    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
@@ -80,6 +81,7 @@ app.use('/api/blogs', blogRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/featured-listings', featuredListingRoutes);
 app.use('/api/directory', directoryRoutes);
+app.use('/api/service-images', serviceImageRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/instructors', instructorRoutes);
