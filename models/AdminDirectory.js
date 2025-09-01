@@ -16,6 +16,12 @@ const AdminDirectorySchema = new mongoose.Schema({
   socialLink: { type: String, default: '' }, // URL to social media profile
   package: { type: String, enum: ['free', 'pro', 'premium'], default: 'free' },
   
+  // Additional fields for bulk upload
+  address: { type: String, default: '' },
+  website: { type: String, default: '' },
+  description: { type: String, default: '' },
+  displayCategory: { type: String, default: '' }, // This is crucial for frontend filtering!
+  
   // Admin upload tracking
   uploadBatch: { type: String, required: true }, // Unique batch ID for each upload
   originalFileName: { type: String, required: true },
@@ -39,5 +45,6 @@ AdminDirectorySchema.index({ city: 1 });
 AdminDirectorySchema.index({ email: 1 });
 AdminDirectorySchema.index({ contractorType: 1 });
 AdminDirectorySchema.index({ package: 1 });
+AdminDirectorySchema.index({ displayCategory: 1 }); // Add index for displayCategory filtering
 
 module.exports = mongoose.model('AdminDirectory', AdminDirectorySchema); 
