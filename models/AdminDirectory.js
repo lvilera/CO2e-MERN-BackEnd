@@ -30,7 +30,7 @@ const AdminDirectorySchema = new mongoose.Schema({
   uploadedBy: { type: String, default: 'admin' },
   
   // Validation and processing
-  validationStatus: { type: String, enum: ['pending', 'valid', 'invalid'], default: 'pending' },
+  validationStatus: { type: String, enum: ['pending', 'validated', 'invalid'], default: 'pending' },
   validationErrors: [{ type: String }],
   originalData: { type: mongoose.Schema.Types.Mixed }, // Store original row data for debugging
   
