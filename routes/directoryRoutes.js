@@ -776,75 +776,32 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
 
     console.log('=== SAVING UPLOAD METADATA ===');
     
-    // Check if a file with the same name already exists
+    // Save upload file metadata to DirectoryUpload model
     try {
-      const existingUpload = await DirectoryUpload.findOne({ 
-        originalFileName: req.file.originalname 
-      });
-      
-      if (existingUpload) {
-        console.log(`🔄 File "${req.file.originalname}" already exists, updating existing entry...`);
-        
-        // Update existing upload entry
-        existingUpload.fileSize = req.file.size;
-        existingUpload.uploadBatch = uploadBatchId;
-        existingUpload.totalRows = data.length;
-        existingUpload.successfulUploads = uploadedCount;
-        existingUpload.failedUploads = errors.length;
-        existingUpload.status = errors.length === 0 ? 'completed' : (uploadedCount > 0 ? 'partial' : 'failed');
-        existingUpload.errors = errors.map(err => ({
+      var uploadMetadata = new DirectoryUpload({
+        originalFileName: req.file.originalname,
+        fileSize: req.file.size,
+        fileType: req.file.originalname.split('.').pop().toLowerCase(),
+        uploadBatch: uploadBatchId,
+        totalRows: data.length,
+        successfulUploads: uploadedCount,
+        failedUploads: errors.length,
+        status: errors.length === 0 ? 'completed' : (uploadedCount > 0 ? 'partial' : 'failed'),
+        errors: errors.map(err => ({
           row: err.row,
           sheet: err.sheet,
           error: err.error,
           company: err.data?.COMPANY || err.data?.company || 'Unknown',
           email: err.data?.EMAIL || err.data?.email || 'Unknown'
-        }));
-        existingUpload.processingTime = Date.now() - startTime;
-        existingUpload.headers = data.length > 0 ? Object.keys(data[0]) : [];
-        existingUpload.sampleRows = data.slice(0, 3);
-        existingUpload.uploadDate = new Date(); // Update upload date
-        existingUpload.updatedAt = new Date();
-        
-        await existingUpload.save();
-        console.log('✅ Existing upload entry updated successfully');
-        
-        // Delete old listings from previous upload
-        const oldListings = await AdminDirectory.find({ uploadBatch: existingUpload.uploadBatch });
-        if (oldListings.length > 0) {
-          await AdminDirectory.deleteMany({ uploadBatch: existingUpload.uploadBatch });
-          console.log(`🗑️  Deleted ${oldListings.length} old listings from previous upload`);
-        }
-        
-      } else {
-        console.log(`🆕 Creating new upload entry for "${req.file.originalname}"...`);
-        
-        // Create new upload entry
-        var uploadMetadata = new DirectoryUpload({
-          originalFileName: req.file.originalname,
-          fileSize: req.file.size,
-          fileType: req.file.originalname.split('.').pop().toLowerCase(),
-          uploadBatch: uploadBatchId,
-          totalRows: data.length,
-          successfulUploads: uploadedCount,
-          failedUploads: errors.length,
-          status: errors.length === 0 ? 'completed' : (uploadedCount > 0 ? 'partial' : 'failed'),
-          errors: errors.map(err => ({
-            row: err.row,
-            sheet: err.sheet,
-            error: err.error,
-            company: err.data?.COMPANY || err.data?.company || 'Unknown',
-            email: err.data?.EMAIL || err.data?.email || 'Unknown'
-          })),
-          uploadedBy: 'admin',
-          processingTime: Date.now() - startTime,
-          headers: data.length > 0 ? Object.keys(data[0]) : [],
-          sampleRows: data.slice(0, 3) // Store first 3 rows as sample
-        });
-        
-        await uploadMetadata.save();
-        console.log('✅ New upload entry created successfully');
-      }
+        })),
+        uploadedBy: 'admin',
+        processingTime: Date.now() - startTime,
+        headers: data.length > 0 ? Object.keys(data[0]) : [],
+        sampleRows: data.slice(0, 3) // Store first 3 rows as sample
+      });
       
+      await uploadMetadata.save();
+      console.log('Upload metadata saved to DirectoryUpload model successfully');
     } catch (metadataError) {
       console.error('Failed to save upload metadata:', metadataError);
       // Don't fail the upload if metadata saving fails
