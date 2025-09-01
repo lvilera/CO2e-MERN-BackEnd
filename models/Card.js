@@ -1,13 +1,18 @@
 const mongoose = require('mongoose');
 
 const CardSchema = new mongoose.Schema({
-  titleEn: { type: String, required: true },
-  titleFr: { type: String, required: true },
-  titleEs: { type: String, required: true },
-  descriptionEn: { type: String, required: true },
-  descriptionFr: { type: String, required: true },
-  descriptionEs: { type: String, required: true },
-  imageUrl: { type: String, required: true },
+  title: {
+    en: { type: String, required: true },
+    fr: { type: String, required: true },
+    es: { type: String, required: true }
+  },
+  description: {
+    en: { type: String, required: true },
+    fr: { type: String, required: true },
+    es: { type: String, required: true }
+  },
+  link: { type: String, required: true },
+  imageUrl: { type: String, required: false }, // Made optional for now
   originalFileName: { type: String },
   isActive: { type: Boolean, default: true },
   displayOrder: { type: Number, default: 0 },
