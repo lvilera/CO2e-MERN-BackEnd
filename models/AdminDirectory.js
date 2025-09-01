@@ -5,7 +5,7 @@ const AdminDirectorySchema = new mongoose.Schema({
   email: { type: String, required: true },
   phone: { type: String, required: true },
   industry: { type: String, required: true },
-  city: { type: String, required: true },
+  city: { type: String, required: false },
   state: { type: String },
   country: { type: String },
   contractorType: { type: String }, // For Local Contractors category
