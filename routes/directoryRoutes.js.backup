@@ -10,29 +10,6 @@ const UploadedFile = require('../models/UploadedFile');
 const DirectoryUpload = require('../models/DirectoryUpload');
 const FeaturedListing = require('../models/FeaturedListing');
 const { getUserLocation } = require('../services/geolocationService');
-const jwt = require('jsonwebtoken');
-
-// Admin authentication middleware
-const requireAdmin = (req, res, next) => {
-  try {
-    const token = req.cookies.token || req.headers.authorization?.replace('Bearer ', '');
-    
-    if (!token) {
-      return res.status(401).json({ error: 'Admin authentication required. Please login as admin.' });
-    }
-
-    const decoded = jwt.verify(token, 'this_is_a_secure_jwt_secret_123456');
-    
-    if (decoded.role !== 'admin' || decoded.userId !== 'admin') {
-      return res.status(403).json({ error: 'Admin privileges required' });
-    }
-
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid admin token' });
-  }
-};
 const router = express.Router();
 
 const storage = multer.memoryStorage();
@@ -95,7 +72,6 @@ router.post('/', upload.single('image'), async (req, res) => {
       contractorType,
       customContractorType,
       submissionMethod: 'form',
-      status: 'approved', // Auto-approve user submissions
       userEmail: email // Track the submitter
     });
     await userDirectory.save();
@@ -124,7 +100,7 @@ router.get('/', async (req, res) => {
     
     // Fetch from both models
     const userListings = await UserDirectory.find({ status: 'approved' }).sort({ createdAt: -1 });
-    const adminListings = await AdminDirectory.find({ validationStatus: { $in: ['validated', 'pending', 'valid'] } }).sort({ createdAt: -1 });
+    const adminListings = await AdminDirectory.find({ validationStatus: { $in: ['validated', 'pending'] } }).sort({ createdAt: -1 });
     
     // Combine and add source information
     const combinedListings = [
@@ -227,7 +203,7 @@ router.get('/search', async (req, res) => {
     
     // Search both models
     const userResults = await UserDirectory.find({ ...query, status: 'approved' }).sort({ createdAt: -1 });
-    const adminResults = await AdminDirectory.find({ ...query, validationStatus: { $in: ['validated', 'pending', 'valid'] } }).sort({ createdAt: -1 });
+    const adminResults = await AdminDirectory.find({ ...query, validationStatus: { $in: ['validated', 'pending'] } }).sort({ createdAt: -1 });
     
     // Combine results
     const combinedResults = [
@@ -264,7 +240,7 @@ router.get('/categories', async (req, res) => {
     
     // Get categories from both models
     const userCategories = await UserDirectory.distinct('industry', { status: 'approved' });
-    const adminCategories = await AdminDirectory.distinct('industry', { validationStatus: { $in: ['validated', 'pending', 'valid'] } });
+    const adminCategories = await AdminDirectory.distinct('industry', { validationStatus: { $in: ['validated', 'pending'] } });
     
     // Combine and deduplicate
     const allCategories = [...new Set([...userCategories, ...adminCategories])];
@@ -280,7 +256,7 @@ router.get('/cities', async (req, res) => {
   try {
     // Get cities from both models
     const userCities = await UserDirectory.distinct('city', { status: 'approved' });
-    const adminCities = await AdminDirectory.distinct('city', { validationStatus: { $in: ['validated', 'pending', 'valid'] } });
+    const adminCities = await AdminDirectory.distinct('city', { validationStatus: { $in: ['validated', 'pending'] } });
     
     // Combine and deduplicate
     const allCities = [...new Set([...userCities, ...adminCities])];
@@ -346,7 +322,7 @@ router.get('/local-contractor-categories', async (req, res) => {
     
     const adminCategories = await AdminDirectory.distinct('contractorType', { 
       $and: [
-        { validationStatus: { $in: ['validated', 'pending', 'valid'] } },
+        { validationStatus: { $in: ['validated', 'pending'] } },
         { $or: [{ industry: 'Local Contractors' }, { displayCategory: 'Local Contractors' }] },
         { contractorType: { $exists: true, $ne: '' } }
       ]
@@ -531,7 +507,7 @@ router.post('/test-parse', upload.single('file'), async (req, res) => {
 });
 
 // POST: Bulk upload directory listings from Excel/CSV file (Admin uploads)
-router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res) => {
+router.post('/bulk-upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -873,7 +849,7 @@ router.get('/upload-history', async (req, res) => {
 });
 
 // DELETE: Delete individual upload and all its listings
-router.delete('/upload-history/:id', requireAdmin, async (req, res) => {
+router.delete('/upload-history/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -1017,21 +993,21 @@ router.get('/debug-data', async (req, res) => {
 });
 
 // DELETE: Clear all directory listings (both models for testing purposes)
-router.delete('/clear-all', requireAdmin, async (req, res) => {
+router.delete('/clear-all', async (req, res) => {
   try {
-    // const userResult = await UserDirectory.deleteMany({}); // REMOVED: Protect user data
+    const userResult = await UserDirectory.deleteMany({});
     const adminResult = await AdminDirectory.deleteMany({});
     // Also clear upload history
     await UploadedFile.deleteMany({});
     
-    const totalDeleted = adminResult.deletedCount; // Only admin data deleted
+    const totalDeleted = userResult.deletedCount + adminResult.deletedCount;
     
     res.json({
       success: true,
-      message: `Cleared ${totalDeleted} admin directory listings and upload history. User directory entries preserved.`,
+      message: `Cleared ${totalDeleted} directory listings (${userResult.deletedCount} user + ${adminResult.deletedCount} admin) and upload history`,
       deletedCount: totalDeleted,
       details: {
-        userListings: 0, // User data preserved
+        userListings: userResult.deletedCount,
         adminListings: adminResult.deletedCount
       }
     });
@@ -1044,107 +1020,4 @@ router.delete('/clear-all', requireAdmin, async (req, res) => {
   }
 });
 
-
-// DELETE: Clear only admin directory listings (safer alternative to clear-all)
-router.delete('/clear-admin-only', requireAdmin, async (req, res) => {
-  try {
-    const adminResult = await AdminDirectory.deleteMany({});
-    // Also clear admin upload history
-    await DirectoryUpload.deleteMany({});
-    await UploadedFile.deleteMany({});
-    
-    res.json({
-      success: true,
-      message: `Cleared ${adminResult.deletedCount} admin directory listings and upload history`,
-      deletedCount: adminResult.deletedCount,
-      note: 'User directory entries were preserved'
-    });
-  } catch (err) {
-    console.error('Clear admin-only error:', err);
-    res.status(500).json({ 
-      error: 'Failed to clear admin directory listings',
-      details: err.message 
-    });
-  }
-});
 module.exports = router; 
-// ==== ADMIN ROUTES FOR USER DIRECTORY MANAGEMENT ====
-
-// GET: All user directory entries for admin review
-router.get('/admin/user-submissions', async (req, res) => {
-  try {
-    const userSubmissions = await UserDirectory.find()
-      .sort({ createdAt: -1 })
-      .select('company email phone industry status createdAt package');
-    
-    res.json({
-      success: true,
-      count: userSubmissions.length,
-      submissions: userSubmissions
-    });
-  } catch (err) {
-    console.error('Error fetching user submissions:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// PUT: Approve/Reject user directory entry
-router.put('/admin/user-submissions/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, moderationNotes } = req.body;
-    
-    if (!['approved', 'rejected', 'pending'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status. Must be approved, rejected, or pending.' });
-    }
-    
-    const updatedEntry = await UserDirectory.findByIdAndUpdate(
-      id,
-      { 
-        status, 
-        moderationNotes: moderationNotes || '',
-        updatedAt: new Date()
-      },
-      { new: true }
-    );
-    
-    if (!updatedEntry) {
-      return res.status(404).json({ error: 'User submission not found' });
-    }
-    
-    res.json({
-      success: true,
-      message: `User submission ${status} successfully`,
-      entry: updatedEntry
-    });
-  } catch (err) {
-    console.error('Error updating user submission:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// DELETE: Delete user directory entry
-router.delete('/admin/user-submissions/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const deletedEntry = await UserDirectory.findByIdAndDelete(id);
-    
-    if (!deletedEntry) {
-      return res.status(404).json({ error: 'User submission not found' });
-    }
-    
-    res.json({
-      success: true,
-      message: 'User submission deleted successfully',
-      deletedEntry: {
-        company: deletedEntry.company,
-        email: deletedEntry.email
-      }
-    });
-  } catch (err) {
-    console.error('Error deleting user submission:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-

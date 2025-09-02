@@ -8,7 +8,7 @@ const UserDirectorySchema = new mongoose.Schema({
   city: { type: String, required: true },
   state: { type: String },
   country: { type: String },
-  contractorType: { type: String }, // For Local Contractors category (optional)
+  contractorType: { type: String, required: true }, // For Local Contractors category
   
   // Enhanced fields
   imageUrl: { type: String, default: '' },
@@ -38,13 +38,6 @@ UserDirectorySchema.statics.checkDuplicate = async function(email) {
   return existing;
 };
 
-// Custom validation for contractorType
-UserDirectorySchema.pre('validate', function(next) {
-  if (this.industry === 'Local Contractors' && (!this.contractorType || this.contractorType.trim() === '')) {
-    this.invalidate('contractorType', 'Contractor type is required for Local Contractors industry');
-  }
-  next();
-});
 // Index for efficient queries
 UserDirectorySchema.index({ email: 1 });
 UserDirectorySchema.index({ industry: 1 });
