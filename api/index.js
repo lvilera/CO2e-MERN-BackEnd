@@ -112,7 +112,7 @@ const connectWithRetry = async () => {
     // For Atlas connections, try to resolve DNS first
     if (currentUriIndex < 3) { // First 3 are Atlas connections
       const hostname = mongoOptions[currentUriIndex].includes('mongodb+srv://')
-        ? 'cluster0.o8bu9nt.mongodb.net'
+        ? 'cluster.jyy8bnn.mongodb.net'
         : 'ac-hdxyrp8-shard-00-00.o8bu9nt.mongodb.net';
 
       try {
