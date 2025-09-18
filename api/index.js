@@ -25,15 +25,17 @@ const newsletterRoutes = require('../routes/newsletterRoutes');
 const contactRoutes = require('../routes/contactRoutes');
 const instructorRoutes = require('../routes/instructor');
 const bookingRoutes = require('../routes/bookingRoutes');
+const userRoutes = require('../routes/userRoutes');
 
 const app = express();
 
 // MongoDB Connection String - Try multiple options with better DNS handling
 const mongoOptions = [
-  "mongodb+srv://aryan:2021cs613@cluster0.o8bu9nt.mongodb.net/myDatabase?retryWrites=true&w=majority&directConnection=false",
-  "mongodb://aryan:2021cs613@ac-hdxyrp8-shard-00-00.o8bu9nt.mongodb.net:27017,ac-hdxyrp8-shard-00-01.o8bu9nt.mongodb.net:27017,ac-hdxyrp8-shard-00-02.o8bu9nt.mongodb.net:27017/myDatabase?ssl=true&replicaSet=atlas-yh1s3n-shard-0&authSource=admin&retryWrites=true&w=majority&directConnection=false",
-  "mongodb+srv://aryan:2021cs613@cluster0.o8bu9nt.mongodb.net/myDatabase?retryWrites=true&w=majority&directConnection=false&serverSelectionTimeoutMS=30000",
-  "mongodb://localhost:27017/myDatabase" // Local fallback
+  "mongodb+srv://ShoaibFarooka:5ddghWES680comTU@cluster.jyy8bnn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster",
+  // "mongodb+srv://aryan:2021cs613@cluster0.o8bu9nt.mongodb.net/myDatabase?retryWrites=true&w=majority&directConnection=false",
+  // "mongodb://aryan:2021cs613@ac-hdxyrp8-shard-00-00.o8bu9nt.mongodb.net:27017,ac-hdxyrp8-shard-00-01.o8bu9nt.mongodb.net:27017,ac-hdxyrp8-shard-00-02.o8bu9nt.mongodb.net:27017/myDatabase?ssl=true&replicaSet=atlas-yh1s3n-shard-0&authSource=admin&retryWrites=true&w=majority&directConnection=false",
+  // "mongodb+srv://aryan:2021cs613@cluster0.o8bu9nt.mongodb.net/myDatabase?retryWrites=true&w=majority&directConnection=false&serverSelectionTimeoutMS=30000",
+  // "mongodb://localhost:27017/myDatabase" // Local fallback
 ];
 
 let currentUriIndex = 0;
@@ -41,24 +43,24 @@ const uri = mongoOptions[currentUriIndex];
 
 // CORS middleware - must be before any routes or express.json()
 app.use(cors({
-   origin: [
-     'http://localhost:3000', 
-     'http://localhost:3001', 
-     'https://co2e.vercel.app',
-     'https://www.co2eportal.com',
-     // Add common frontend deployment patterns
-     /https:\/\/.*\.vercel\.app$/,
-     /https:\/\/.*\.netlify\.app$/,
-     /https:\/\/.*\.herokuapp\.com$/,
-     // For debugging - allow any HTTPS origin
-     /https:\/\/.*/
-   ],
-   credentials: true,
-   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-   allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
-   preflightContinue: false,
-   optionsSuccessStatus: 200
- }));
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://co2e.vercel.app',
+    'https://www.co2eportal.com',
+    // Add common frontend deployment patterns
+    /https:\/\/.*\.vercel\.app$/,
+    /https:\/\/.*\.netlify\.app$/,
+    /https:\/\/.*\.herokuapp\.com$/,
+    // For debugging - allow any HTTPS origin
+    /https:\/\/.*/
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 200
+}));
 
 app.use(express.json());
 app.use(cookieParser());
@@ -76,13 +78,13 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Credentials', 'true');
     return res.status(200).end();
   }
-  
+
   // For iPhone Safari, if no cookie token but Authorization header exists, set it as cookie
   if (!req.cookies.token && req.headers.authorization) {
     const token = req.headers.authorization.replace('Bearer ', '');
     req.cookies.token = token;
   }
-  
+
   next();
 });
 
@@ -100,18 +102,19 @@ app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/instructors', instructorRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/users', userRoutes);
 
 // MongoDB Connection with retry logic and DNS handling
 const connectWithRetry = async () => {
   try {
     console.log(`🔄 Attempting to connect to MongoDB (option ${currentUriIndex + 1}/${mongoOptions.length})...`);
-    
+
     // For Atlas connections, try to resolve DNS first
     if (currentUriIndex < 3) { // First 3 are Atlas connections
-      const hostname = mongoOptions[currentUriIndex].includes('mongodb+srv://') 
+      const hostname = mongoOptions[currentUriIndex].includes('mongodb+srv://')
         ? 'cluster0.o8bu9nt.mongodb.net'
         : 'ac-hdxyrp8-shard-00-00.o8bu9nt.mongodb.net';
-      
+
       try {
         const { lookup } = require('dns').promises;
         await lookup(hostname);
@@ -122,7 +125,7 @@ const connectWithRetry = async () => {
         process.env.DNS_SERVERS = '8.8.8.8,8.8.4.4';
       }
     }
-    
+
     await mongoose.connect(mongoOptions[currentUriIndex], {
       serverSelectionTimeoutMS: 30000,
       socketTimeoutMS: 45000,
@@ -131,22 +134,22 @@ const connectWithRetry = async () => {
       maxIdleTimeMS: 30000,
       connectTimeoutMS: 30000
     });
-    
+
     console.log('✅ Connected to MongoDB successfully!');
-    
+
     // Start server only after successful connection
     const PORT = process.env.PORT || 5001;
     app.listen(PORT, () => {
       console.log(`🚀 Server is running on port ${PORT}`);
       console.log(`🌐 Server URL: http://localhost:${PORT}`);
     });
-    
+
   } catch (err) {
     console.error(`❌ MongoDB connection failed with option ${currentUriIndex + 1}:`, err.message);
-    
+
     // Try next connection option
     currentUriIndex++;
-    
+
     if (currentUriIndex < mongoOptions.length) {
       console.log(`🔄 Trying next connection option in 3 seconds...`);
       setTimeout(connectWithRetry, 3000);
@@ -157,7 +160,7 @@ const connectWithRetry = async () => {
       console.log('2. Verify MongoDB Atlas is accessible');
       console.log('3. Try using a different DNS server (like 8.8.8.8)');
       console.log('4. Check if your IP is whitelisted in MongoDB Atlas');
-      
+
       // Start server anyway for development (without database)
       const PORT = process.env.PORT || 5001;
       app.listen(PORT, () => {
