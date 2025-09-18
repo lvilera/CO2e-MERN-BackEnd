@@ -46,7 +46,7 @@ router.post('/signup', async (req, res) => {
     });
 
     await newUser.save();
-    res.status(201).json({ 
+    res.status(201).json({
       message: 'User registered successfully.',
       location: userLocation
     });
@@ -78,10 +78,10 @@ router.post('/login', async (req, res) => {
         maxAge: 2 * 24 * 60 * 60 * 1000
       });
 
-      return res.status(200).json({ 
-        message: 'Admin login successful', 
-        package: 'admin', 
-        userId: 'admin', 
+      return res.status(200).json({
+        message: 'Admin login successful',
+        package: 'admin',
+        userId: 'admin',
         token: adminToken,
         role: 'admin'
       });
@@ -128,10 +128,11 @@ router.post('/login', async (req, res) => {
       maxAge: 2 * 24 * 60 * 60 * 1000 // 2 days
     });
 
-    res.status(200).json({ 
-      message: 'Login successful', 
-      package: user.package, 
-      userId: user._id, 
+    res.status(200).json({
+      message: 'Login successful',
+      role: user.role,
+      package: user.package,
+      userId: user._id,
       token: token,
       location: {
         city: user.city,
@@ -143,7 +144,7 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error('Login route error:', err);
     console.error('Error stack:', err.stack);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Server error',
       error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
@@ -155,28 +156,28 @@ router.put('/update-location', async (req, res) => {
   try {
     // Check for token in cookies first, then Authorization header
     let token = req.cookies.token;
-    
+
     if (!token && req.headers.authorization) {
       token = req.headers.authorization.replace('Bearer ', '');
     }
-    
+
     if (!token) return res.status(401).json({ error: 'No token' });
-    
+
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(decoded.userId);
-    
+
     if (!user) return res.status(404).json({ error: 'User not found' });
-    
+
     // Get user's current location from IP
     const userLocation = getUserLocation(req);
-    
+
     // Update user's location
     user.city = userLocation.city;
     user.state = userLocation.state;
     user.country = userLocation.country;
-    
+
     await user.save();
-    
+
     res.json({
       success: true,
       message: 'Location updated successfully',
@@ -235,14 +236,14 @@ router.post('/instructor-login', async (req, res) => {
 router.post('/forgot-password', async (req, res) => {
   const { email, language = 'en' } = req.body;
   console.log('Forgot password request for email:', email, 'language:', language);
-  
+
   if (!email) return res.status(400).json({ message: 'Email is required.' });
   const user = await User.findOne({ email });
   if (!user) {
     console.log('User not found for email:', email);
     return res.status(200).json({ message: 'If that email exists, a reset link has been sent.' });
   }
-  
+
   console.log('User found:', user.email, user.firstName);
 
   // Generate reset token (JWT)
@@ -257,7 +258,7 @@ router.post('/forgot-password', async (req, res) => {
     en: {
       subject: 'Password Reset - CO2e Portal',
       text: `Hello ${user.firstName},\n\nYou requested a password reset for your CO2e Portal account.\n\nClick the link below to reset your password:\nhttps://www.co2eportal.com/reset-password?token=${resetToken}\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\nCO2e Portal Team`,
-              html: `
+      html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Password Reset Request</h2>
           <p>Hello ${user.firstName},</p>
@@ -329,7 +330,7 @@ router.post('/forgot-password', async (req, res) => {
         pass: 'gvyqmapsqsrrtwjm',
       },
     });
-    
+
     console.log('Transporter created, sending email...');
     await transporter.sendMail({
       from: 'aryanarshad5413@gmail.com',
@@ -368,13 +369,13 @@ router.post('/reset-password', async (req, res) => {
 router.get('/me', async (req, res) => {
   // Check for token in cookies first, then Authorization header (for iPhone Safari fallback)
   let token = req.cookies.token;
-  
+
   if (!token && req.headers.authorization) {
     token = req.headers.authorization.replace('Bearer ', '');
   }
-  
+
   if (!token) return res.status(401).json({ error: 'No token' });
-  
+
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(decoded.userId);
