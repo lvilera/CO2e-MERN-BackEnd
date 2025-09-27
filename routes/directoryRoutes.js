@@ -16,13 +16,13 @@ const jwt = require('jsonwebtoken');
 const requireAdmin = (req, res, next) => {
   try {
     const token = req.cookies.token || req.headers.authorization?.replace('Bearer ', '');
-    
+
     if (!token) {
       return res.status(401).json({ error: 'Admin authentication required. Please login as admin.' });
     }
 
     const decoded = jwt.verify(token, 'this_is_a_secure_jwt_secret_123456');
-    
+
     if (decoded.role !== 'admin' || decoded.userId !== 'admin') {
       return res.status(403).json({ error: 'Admin privileges required' });
     }
@@ -44,11 +44,11 @@ router.post('/', upload.single('image'), async (req, res) => {
     console.log('🎯 User Directory form submission received');
     console.log('📋 Form data:', req.body);
     console.log('📁 File uploaded:', req.file ? 'Yes' : 'No');
-    
+
     const { company, email, phone, address, website, socialType, socialLink, industry, description, userPackage, city, state, country, contractorType, customContractorType } = req.body;
-    
+
     console.log(`👤 User package: ${userPackage}`);
-    
+
     // Check if a listing already exists for this email in UserDirectory
     const existingUser = await UserDirectory.checkDuplicate(email);
     if (existingUser) {
@@ -116,27 +116,27 @@ router.get('/', async (req, res) => {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     res.header('Access-Control-Allow-Credentials', 'true');
-    
+
     // Handle preflight requests for iPhone Safari
     if (req.method === 'OPTIONS') {
       return res.status(200).end();
     }
-    
+
     // Fetch from both models
     const userListings = await UserDirectory.find({ status: 'approved' }).sort({ createdAt: -1 });
     const adminListings = await AdminDirectory.find({ validationStatus: { $in: ['validated', 'pending', 'valid'] } }).sort({ createdAt: -1 });
-    
+
     // Combine and add source information
     const combinedListings = [
       ...userListings.map(listing => ({ ...listing.toObject(), source: 'user' })),
       ...adminListings.map(listing => ({ ...listing.toObject(), source: 'admin' }))
     ];
-    
+
     // Sort combined results by creation date
     combinedListings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    
+
     console.log(`📊 Returned ${userListings.length} user listings + ${adminListings.length} admin listings = ${combinedListings.length} total`);
-    
+
     res.json(combinedListings);
   } catch (err) {
     console.error('Error fetching directory listings:', err);
@@ -149,9 +149,9 @@ router.get('/local/:city', async (req, res) => {
   try {
     const { city } = req.params;
     const { state, country } = req.query;
-    
+
     let query = { city: { $regex: new RegExp(city, 'i') } };
-    
+
     // Add state and country filters if provided
     if (state) {
       query.state = { $regex: new RegExp(state, 'i') };
@@ -159,9 +159,9 @@ router.get('/local/:city', async (req, res) => {
     if (country) {
       query.country = { $regex: new RegExp(country, 'i') };
     }
-    
+
     const localContractors = await Directory.find(query).sort({ createdAt: -1 });
-    
+
     res.json({
       success: true,
       city,
@@ -180,19 +180,19 @@ router.get('/nearby', async (req, res) => {
   try {
     // Get user's location from IP
     const userLocation = await getUserLocation(req);
-    
+
     if (!userLocation.city || userLocation.city === 'Unknown') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Unable to determine your location. Please search by city name instead.',
         userLocation
       });
     }
-    
+
     // Find contractors in the same city
     const nearbyContractors = await Directory.find({
       city: { $regex: new RegExp(userLocation.city, 'i') }
     }).sort({ createdAt: -1 });
-    
+
     res.json({
       success: true,
       userLocation,
@@ -208,9 +208,9 @@ router.get('/nearby', async (req, res) => {
 router.get('/search', async (req, res) => {
   try {
     const { industry, city, state, country } = req.query;
-    
+
     let query = {};
-    
+
     // Add filters if provided
     if (industry) {
       query.industry = { $regex: new RegExp(industry, 'i') };
@@ -224,20 +224,20 @@ router.get('/search', async (req, res) => {
     if (country) {
       query.country = { $regex: new RegExp(country, 'i') };
     }
-    
+
     // Search both models
     const userResults = await UserDirectory.find({ ...query, status: 'approved' }).sort({ createdAt: -1 });
     const adminResults = await AdminDirectory.find({ ...query, validationStatus: { $in: ['validated', 'pending', 'valid'] } }).sort({ createdAt: -1 });
-    
+
     // Combine results
     const combinedResults = [
       ...userResults.map(result => ({ ...result.toObject(), source: 'user' })),
       ...adminResults.map(result => ({ ...result.toObject(), source: 'admin' }))
     ];
-    
+
     // Sort combined results by creation date
     combinedResults.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    
+
     res.json({
       success: true,
       filters: { industry, city, state, country },
@@ -261,14 +261,14 @@ router.get('/categories', async (req, res) => {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     res.header('Access-Control-Allow-Credentials', 'true');
-    
+
     // Get categories from both models
     const userCategories = await UserDirectory.distinct('industry', { status: 'approved' });
     const adminCategories = await AdminDirectory.distinct('industry', { validationStatus: { $in: ['validated', 'pending', 'valid'] } });
-    
+
     // Combine and deduplicate
     const allCategories = [...new Set([...userCategories, ...adminCategories])];
-    
+
     res.json(allCategories.filter(category => category && category.trim() !== ''));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -281,10 +281,10 @@ router.get('/cities', async (req, res) => {
     // Get cities from both models
     const userCities = await UserDirectory.distinct('city', { status: 'approved' });
     const adminCities = await AdminDirectory.distinct('city', { validationStatus: { $in: ['validated', 'pending', 'valid'] } });
-    
+
     // Combine and deduplicate
     const allCities = [...new Set([...userCities, ...adminCities])];
-    
+
     res.json(allCities.filter(city => city && city.trim() !== '').sort());
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -295,16 +295,16 @@ router.get('/cities', async (req, res) => {
 router.get('/contractor-types', async (req, res) => {
   try {
     // Get all Local Contractors listings (check both industry and displayCategory)
-    const localContractors = await Directory.find({ 
+    const localContractors = await Directory.find({
       $or: [
         { industry: 'Local Contractors' },
         { displayCategory: 'Local Contractors' }
       ]
     }, 'contractorType customContractorType description');
-    
+
     // Extract the actual contractor types
     const contractorTypes = new Set();
-    
+
     localContractors.forEach(contractor => {
       if (contractor.contractorType && contractor.contractorType.trim() !== '') {
         // If contractorType is "other", use customContractorType instead
@@ -320,10 +320,10 @@ router.get('/contractor-types', async (req, res) => {
         contractorTypes.add(contractor.customContractorType.trim());
       }
     });
-    
+
     // Convert to sorted array
     const uniqueTypes = Array.from(contractorTypes).sort();
-    
+
     console.log('Contractor types found:', uniqueTypes);
     res.json(uniqueTypes);
   } catch (err) {
@@ -336,30 +336,30 @@ router.get('/contractor-types', async (req, res) => {
 router.get('/local-contractor-categories', async (req, res) => {
   try {
     // Get categories from both UserDirectory and AdminDirectory for Local Contractors
-    const userCategories = await UserDirectory.distinct('contractorType', { 
+    const userCategories = await UserDirectory.distinct('contractorType', {
       $and: [
         { status: 'approved' },
         { $or: [{ industry: 'Local Contractors' }, { displayCategory: 'Local Contractors' }] },
         { contractorType: { $exists: true, $ne: '' } }
       ]
     });
-    
-    const adminCategories = await AdminDirectory.distinct('contractorType', { 
+
+    const adminCategories = await AdminDirectory.distinct('contractorType', {
       $and: [
         { validationStatus: { $in: ['validated', 'pending', 'valid'] } },
         { $or: [{ industry: 'Local Contractors' }, { displayCategory: 'Local Contractors' }] },
         { contractorType: { $exists: true, $ne: '' } }
       ]
     });
-    
+
     // Combine and deduplicate
     const allCategories = [...new Set([...userCategories, ...adminCategories])];
-    
+
     // Filter out empty strings and sort
     const filteredCategories = allCategories
       .filter(category => category && category.trim() !== '')
       .sort();
-    
+
     console.log('Local Contractor categories found:', filteredCategories);
     res.json(filteredCategories);
   } catch (err) {
@@ -375,10 +375,10 @@ router.get('/iphone-access', async (req, res) => {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     res.header('Access-Control-Allow-Credentials', 'true');
-    
+
     const listings = await Directory.find().sort({ createdAt: -1 });
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       listings,
       message: 'iPhone Safari access granted'
     });
@@ -391,10 +391,10 @@ router.get('/iphone-access', async (req, res) => {
 router.get('/debug-ip', async (req, res) => {
   try {
     const { getUserLocation, getClientIP } = require('../services/geolocationService');
-    
+
     const detectedIP = getClientIP(req);
     const userLocation = getUserLocation(req);
-    
+
     // Add more detailed IP detection for Vercel
     const allHeaders = {};
     Object.keys(req.headers).forEach(key => {
@@ -402,7 +402,7 @@ router.get('/debug-ip', async (req, res) => {
         allHeaders[key] = req.headers[key];
       }
     });
-    
+
     res.json({
       success: true,
       debug: {
@@ -431,24 +431,24 @@ router.post('/test-parse', upload.single('file'), async (req, res) => {
     const fileBuffer = req.file.buffer;
     const fileName = req.file.originalname;
     const fileExtension = fileName.split('.').pop().toLowerCase();
-    
+
     let data = [];
     let sheetInfo = []; // Initialize sheetInfo for all file types
-    
+
     // Parse file based on extension
     if (fileExtension === 'csv') {
       // Parse CSV
       const csvData = fileBuffer.toString();
       const lines = csvData.split('\n');
       const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-      
+
       // For CSV, create a single sheet info
       sheetInfo.push({
         name: 'CSV Data',
         rows: lines.length - 1, // Exclude header
         headers: headers
       });
-      
+
       for (let i = 1; i < lines.length; i++) {
         if (lines[i].trim()) {
           const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
@@ -463,37 +463,37 @@ router.post('/test-parse', upload.single('file'), async (req, res) => {
       // Parse Excel
       let workbook = XLSX.read(fileBuffer, { type: 'buffer' });
       console.log(`Test parse - Available sheets: ${workbook.SheetNames.join(', ')}`);
-      
+
       // Process all sheets/tabs
       for (let sheetName of workbook.SheetNames) {
         let worksheet = workbook.Sheets[sheetName];
         let sheetData = XLSX.utils.sheet_to_json(worksheet);
-        
+
         sheetInfo.push({
           name: sheetName,
           rows: sheetData.length,
           headers: sheetData.length > 0 ? Object.keys(sheetData[0]) : []
         });
-        
+
         // Add sheet name to each row for debugging
         sheetData.forEach(row => {
           row._sheet = sheetName;
           data.push(row);
         });
       }
-      
+
       console.log(`Test parse - Total rows across all sheets: ${data.length}`);
-      
+
       // Show auto-categorization mapping
       let tabToIndustry = {
         'Brokers': 'Broker',
-        'Exchange': 'Exchange', 
+        'Exchange': 'Exchange',
         'Project Type': 'Project',
         'Retail': 'Retail',
         'Wholesalers': 'Wholesaler',
         'Local Contractor': 'Local Contractors'
       };
-      
+
       console.log('Auto-categorization mapping:');
       Object.entries(tabToIndustry).forEach(([tab, industry]) => {
         console.log(`  ${tab} → ${industry}`);
@@ -513,7 +513,7 @@ router.post('/test-parse', upload.single('file'), async (req, res) => {
       firstThreeRows: data.slice(0, 3),
       autoCategorization: {
         'Brokers': 'Broker',
-        'Exchange': 'Exchange', 
+        'Exchange': 'Exchange',
         'Project Type': 'Project',
         'Retail': 'Retail',
         'Wholesalers': 'Wholesaler',
@@ -523,9 +523,9 @@ router.post('/test-parse', upload.single('file'), async (req, res) => {
 
   } catch (err) {
     console.error('Test parse error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to parse file',
-      details: err.message 
+      details: err.message
     });
   }
 });
@@ -537,28 +537,40 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    // Delete all old admin directory entries before bulk upload
+    try {
+      const deleteResult = await AdminDirectory.deleteMany({});
+      console.log(`🗑️ Deleted ${deleteResult.deletedCount} existing admin directory entries.`);
+    } catch (deleteErr) {
+      console.error('Failed to delete old admin directory entries:', deleteErr);
+      return res.status(500).json({
+        error: 'Failed to clear existing admin directories before upload',
+        details: deleteErr.message
+      });
+    }
+
     const startTime = Date.now();
     console.log('🎯 Admin bulk upload started');
-    
+
     // Use var instead of let/const to avoid any variable redeclaration issues
     var fileBuffer = req.file.buffer;
     var fileName = req.file.originalname;
     var fileExtension = fileName.split('.').pop().toLowerCase();
     var data = [];
     var uploadBatchId = new Date().getTime().toString(); // Unique batch ID
-    
+
     // Parse file based on extension
     if (fileExtension === 'csv') {
       // Parse CSV
       var csvData = fileBuffer.toString();
       var lines = csvData.split('\n');
-      var headers = lines[0].split(',').map(function(h) { return h.trim().replace(/"/g, ''); });
-      
+      var headers = lines[0].split(',').map(function (h) { return h.trim().replace(/"/g, ''); });
+
       for (var i = 1; i < lines.length; i++) {
         if (lines[i].trim()) {
-          var values = lines[i].split(',').map(function(v) { return v.trim().replace(/"/g, ''); });
+          var values = lines[i].split(',').map(function (v) { return v.trim().replace(/"/g, ''); });
           var row = {};
-          headers.forEach(function(header, index) {
+          headers.forEach(function (header, index) {
             row[header] = values[index] || '';
           });
           data.push(row);
@@ -568,23 +580,23 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
       // Parse Excel (including .xlsm files with macros)
       var workbook = XLSX.read(fileBuffer, { type: 'buffer' });
       console.log('Excel file detected. Available sheets: ' + workbook.SheetNames.join(', '));
-      
+
       // Process all sheets/tabs
       data = [];
       for (var sheetIndex = 0; sheetIndex < workbook.SheetNames.length; sheetIndex++) {
         var sheetName = workbook.SheetNames[sheetIndex];
         var worksheet = workbook.Sheets[sheetName];
         var sheetData = XLSX.utils.sheet_to_json(worksheet);
-        
+
         console.log('Processing sheet: ' + sheetName + ', Rows: ' + sheetData.length);
-        
+
         // Add sheet name to each row for debugging
         for (var rowIndex = 0; rowIndex < sheetData.length; rowIndex++) {
           sheetData[rowIndex]._sheet = sheetName;
           data.push(sheetData[rowIndex]);
         }
       }
-      
+
       console.log('Total rows across all sheets: ' + data.length);
     } else {
       return res.status(400).json({ error: 'Unsupported file format. Please upload Excel (.xlsx, .xls, .xlsm) or CSV files.' });
@@ -607,13 +619,13 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
     // Tab to industry mapping
     var tabToIndustry = {
       'Brokers': 'Broker',
-      'Exchange': 'Exchange', 
+      'Exchange': 'Exchange',
       'Project Type': 'Project',
       'Retail': 'Retail',
       'Wholesalers': 'Wholesaler',
       'Local Contractor': 'Local Contractors'
     };
-    
+
     // Industry to display category mapping for better frontend filtering
     var industryToDisplayCategory = {
       'Broker': 'Broker',
@@ -631,7 +643,7 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
 
     console.log('=== STARTING ROW PROCESSING ===');
     console.log('Total rows to process: ' + data.length);
-    
+
     for (var i = 0; i < data.length; i++) {
       try {
         console.log('=== PROCESSING ROW ' + (i + 1) + ' of ' + data.length + ' ===');
@@ -640,7 +652,7 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
         console.log('Available columns in row:', Object.keys(currentRow));
         console.log('SUB-CATEGORY2 value:', currentRow['SUB-CATEGORY2']);
         console.log('SUB-CATEGORY value:', currentRow['SUB-CATEGORY']);
-        
+
         // Map the columns to our Directory model fields
         var company = currentRow.COMPANY || currentRow.company || currentRow.Company || '';
         var email = currentRow.EMAIL || currentRow['EMAIL '] || currentRow.email || currentRow.Email || '';
@@ -653,15 +665,15 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
         var userPackage = currentRow.USER || currentRow.user || currentRow.User || currentRow.PACKAGE || currentRow.package || '';
         var category = currentRow.CATEGORY || currentRow.category || currentRow.Category || currentRow.industry || currentRow.Industry || '';
         var subcategory = currentRow['SUB-CATEGORY2'] || currentRow['SUB-CATEGORY'] || currentRow.subcategory || currentRow.Subcategory || currentRow.description || currentRow.Description || '';
-        
+
         console.log('Initial subcategory mapping - SUB-CATEGORY2:', currentRow['SUB-CATEGORY2'], 'SUB-CATEGORY:', currentRow['SUB-CATEGORY']);
-        
+
         // If subcategory is empty, try to get it from other possible column names
         if (!subcategory || subcategory.trim() === '') {
           subcategory = currentRow['SUB-CATEGORY2'] || currentRow['SUB-CATEGORY'] || currentRow['Sub-Category'] || currentRow['Sub-Category2'] || '';
           console.log('Trying alternative column names for subcategory:', subcategory);
         }
-        
+
         // Only set default if still empty
         if (!subcategory || subcategory.trim() === '') {
           subcategory = '';
@@ -669,9 +681,9 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
         } else {
           console.log('Subcategory found:', subcategory);
         }
-        
+
         console.log('Mapped values - Company:', company, 'Email:', email, 'Phone:', phone, 'Category:', category, 'Image URL:', imageUrl, 'Social Type:', socialType, 'Social Link:', socialLink, 'Package:', userPackage);
-        
+
         // Clean up any trailing/leading spaces in key fields
         email = email.trim();
         company = company.trim();
@@ -681,25 +693,25 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
         socialLink = socialLink ? socialLink.trim() : '';
         socialType = socialType ? socialType.trim().toLowerCase() : '';
         userPackage = userPackage ? userPackage.trim().toLowerCase() : 'free';
-        
+
         // Validate and normalize package type
         if (!['free', 'pro', 'premium'].includes(userPackage)) {
           console.log('Invalid package type "' + userPackage + '", defaulting to "free"');
           userPackage = 'free';
         }
-        
+
         // ALWAYS use the tab name for categorization, ignore the CATEGORY field from file
         var tabName = currentRow._sheet || '';
         category = tabToIndustry[tabName] || tabName;
         console.log('Categorized row from tab "' + tabName + '" to industry "' + category + '" (ignoring file CATEGORY field)');
-        
+
         // Map the industry to a display category for better frontend filtering
         var displayCategory = industryToDisplayCategory[category] || category;
         console.log('Industry mapping - Original:', category, 'Tab:', currentRow._sheet, 'Display Category:', displayCategory);
         if (displayCategory !== category) {
           console.log('Mapped industry "' + category + '" to display category "' + displayCategory + '"');
         }
-        
+
         // For Local Contractors, automatically set contractorType from CATEGORY column (not SUB-CATEGORY2)
         var contractorType = '';
         var customContractorType = '';
@@ -709,7 +721,7 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
           contractorType = originalCategory && originalCategory.trim() !== '' ? originalCategory.trim() : 'General Contractor';
           console.log('Auto-setting contractor type for Local Contractor from CATEGORY field:', contractorType);
         }
-        
+
         var adminDirectoryData = {
           company: company,
           email: email,
@@ -738,7 +750,7 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
           validationStatus: 'pending',
           createdAt: new Date()
         };
-        
+
         console.log('Admin Directory data prepared:', adminDirectoryData);
         console.log('displayCategory field value:', adminDirectoryData.displayCategory);
 
@@ -748,7 +760,7 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
         if (!adminDirectoryData.email || adminDirectoryData.email.trim() === '') missingFields.push('email');
         if (!adminDirectoryData.phone || adminDirectoryData.phone.trim() === '') missingFields.push('phone');
         if (!adminDirectoryData.industry || adminDirectoryData.industry.trim() === '') missingFields.push('industry');
-        
+
         if (missingFields.length > 0) {
           console.log('Row ' + (i + 2) + ' has missing fields:', missingFields);
           errors.push({
@@ -770,7 +782,7 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
         console.log('AdminDirectory object created, saving...');
         await adminDirectory.save();
         console.log('AdminDirectory saved successfully for row ' + (i + 2));
-        
+
         results.push({
           row: i + 2,
           sheet: currentRow._sheet || 'Unknown',
@@ -779,7 +791,7 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
           status: 'success',
           batchId: uploadBatchId
         });
-        
+
         uploadedCount++;
         console.log('Row ' + (i + 2) + ' processed successfully. Total uploaded: ' + uploadedCount);
 
@@ -794,12 +806,12 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
         });
       }
     }
-    
+
     console.log('=== ROW PROCESSING COMPLETED ===');
     console.log('Final results - Uploaded:', uploadedCount, 'Errors:', errors.length, 'Total processed:', data.length);
 
     console.log('=== SAVING UPLOAD METADATA ===');
-    
+
     // Save upload file metadata to DirectoryUpload model
     try {
       var uploadMetadata = new DirectoryUpload({
@@ -823,14 +835,14 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
         headers: data.length > 0 ? Object.keys(data[0]) : [],
         sampleRows: data.slice(0, 3) // Store first 3 rows as sample
       });
-      
+
       await uploadMetadata.save();
       console.log('Upload metadata saved to DirectoryUpload model successfully');
     } catch (metadataError) {
       console.error('Failed to save upload metadata:', metadataError);
       // Don't fail the upload if metadata saving fails
     }
-    
+
     console.log('=== PREPARING RESPONSE ===');
     var responseData = {
       success: true,
@@ -841,16 +853,16 @@ router.post('/bulk-upload', requireAdmin, upload.single('file'), async (req, res
       results: results
     };
     console.log('Response data prepared:', responseData);
-    
+
     console.log('=== SENDING RESPONSE ===');
     res.json(responseData);
     console.log('=== RESPONSE SENT SUCCESSFULLY ===');
 
   } catch (err) {
     console.error('Bulk upload error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to process file upload',
-      details: err.message 
+      details: err.message
     });
   }
 });
@@ -865,9 +877,9 @@ router.get('/upload-history', async (req, res) => {
     res.json(uploadedFiles);
   } catch (err) {
     console.error('Get upload history error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get upload history',
-      details: err.message 
+      details: err.message
     });
   }
 });
@@ -876,19 +888,19 @@ router.get('/upload-history', async (req, res) => {
 router.delete('/upload-history/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Find the upload to get the batch ID
     const upload = await DirectoryUpload.findById(id);
     if (!upload) {
       return res.status(404).json({ error: 'Upload not found' });
     }
-    
+
     // Delete all listings from this upload batch
     const deleteResult = await AdminDirectory.deleteMany({ uploadBatch: upload.uploadBatch });
-    
+
     // Delete the upload record
     await DirectoryUpload.findByIdAndDelete(id);
-    
+
     res.json({
       success: true,
       message: `Successfully deleted upload and ${deleteResult.deletedCount} listings`,
@@ -897,9 +909,9 @@ router.delete('/upload-history/:id', requireAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error('Delete upload error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to delete upload',
-      details: err.message 
+      details: err.message
     });
   }
 });
@@ -909,14 +921,14 @@ router.get('/admin-uploads', async (req, res) => {
   try {
     const { batchId, status } = req.query;
     let query = {};
-    
+
     if (batchId) {
       query.uploadBatch = batchId;
     }
     if (status) {
       query.validationStatus = status;
     }
-    
+
     const adminListings = await AdminDirectory.find(query).sort({ createdAt: -1 });
     res.json({
       success: true,
@@ -934,14 +946,14 @@ router.get('/user-submissions', async (req, res) => {
   try {
     const { status, package: userPackage } = req.query;
     let query = {};
-    
+
     if (status) {
       query.status = status;
     }
     if (userPackage) {
       query.package = userPackage;
     }
-    
+
     const userListings = await UserDirectory.find(query).sort({ createdAt: -1 });
     res.json({
       success: true,
@@ -959,21 +971,21 @@ router.put('/admin-uploads/:id/validate', async (req, res) => {
   try {
     const { id } = req.params;
     const { validationStatus, validationErrors } = req.body;
-    
+
     const updated = await AdminDirectory.findByIdAndUpdate(
       id,
-      { 
+      {
         validationStatus,
         validationErrors: validationErrors || [],
         updatedAt: new Date()
       },
       { new: true }
     );
-    
+
     if (!updated) {
       return res.status(404).json({ error: 'Admin directory entry not found' });
     }
-    
+
     res.json({
       success: true,
       message: `Validation status updated to ${validationStatus}`,
@@ -990,7 +1002,7 @@ router.get('/debug-data', async (req, res) => {
   try {
     const userListings = await UserDirectory.find().limit(5);
     const adminListings = await AdminDirectory.find().limit(5);
-    
+
     res.json({
       success: true,
       debug: {
@@ -1023,9 +1035,9 @@ router.delete('/clear-all', requireAdmin, async (req, res) => {
     const adminResult = await AdminDirectory.deleteMany({});
     // Also clear upload history
     await UploadedFile.deleteMany({});
-    
+
     const totalDeleted = adminResult.deletedCount; // Only admin data deleted
-    
+
     res.json({
       success: true,
       message: `Cleared ${totalDeleted} admin directory listings and upload history. User directory entries preserved.`,
@@ -1037,9 +1049,9 @@ router.delete('/clear-all', requireAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error('Clear all error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to clear directory listings',
-      details: err.message 
+      details: err.message
     });
   }
 });
@@ -1052,7 +1064,7 @@ router.delete('/clear-admin-only', requireAdmin, async (req, res) => {
     // Also clear admin upload history
     await DirectoryUpload.deleteMany({});
     await UploadedFile.deleteMany({});
-    
+
     res.json({
       success: true,
       message: `Cleared ${adminResult.deletedCount} admin directory listings and upload history`,
@@ -1061,13 +1073,13 @@ router.delete('/clear-admin-only', requireAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error('Clear admin-only error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to clear admin directory listings',
-      details: err.message 
+      details: err.message
     });
   }
 });
-module.exports = router; 
+module.exports = router;
 // ==== ADMIN ROUTES FOR USER DIRECTORY MANAGEMENT ====
 
 // GET: All user directory entries for admin review
@@ -1076,7 +1088,7 @@ router.get('/admin/user-submissions', async (req, res) => {
     const userSubmissions = await UserDirectory.find()
       .sort({ createdAt: -1 })
       .select('company email phone industry status createdAt package');
-    
+
     res.json({
       success: true,
       count: userSubmissions.length,
@@ -1093,25 +1105,25 @@ router.put('/admin/user-submissions/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { status, moderationNotes } = req.body;
-    
+
     if (!['approved', 'rejected', 'pending'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status. Must be approved, rejected, or pending.' });
     }
-    
+
     const updatedEntry = await UserDirectory.findByIdAndUpdate(
       id,
-      { 
-        status, 
+      {
+        status,
         moderationNotes: moderationNotes || '',
         updatedAt: new Date()
       },
       { new: true }
     );
-    
+
     if (!updatedEntry) {
       return res.status(404).json({ error: 'User submission not found' });
     }
-    
+
     res.json({
       success: true,
       message: `User submission ${status} successfully`,
@@ -1127,13 +1139,13 @@ router.put('/admin/user-submissions/:id', async (req, res) => {
 router.delete('/admin/user-submissions/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const deletedEntry = await UserDirectory.findByIdAndDelete(id);
-    
+
     if (!deletedEntry) {
       return res.status(404).json({ error: 'User submission not found' });
     }
-    
+
     res.json({
       success: true,
       message: 'User submission deleted successfully',

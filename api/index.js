@@ -26,6 +26,7 @@ const contactRoutes = require('../routes/contactRoutes');
 const instructorRoutes = require('../routes/instructor');
 const bookingRoutes = require('../routes/bookingRoutes');
 const userRoutes = require('../routes/userRoutes');
+const guideRoutes = require('../routes/guideRoutes');
 
 const app = express();
 
@@ -103,6 +104,7 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/instructors', instructorRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/guides', guideRoutes);
 
 // MongoDB Connection with retry logic and DNS handling
 const connectWithRetry = async () => {
