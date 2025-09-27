@@ -19,4 +19,26 @@ const storage = new CloudinaryStorage({
   },
 });
 
-module.exports = { cloudinary, storage };
+const storage2 = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'guideImages',
+    allowed_formats: ['jpg', 'jpeg', 'png'],
+    // transformation: [
+    //   { width: 500, height: 600, crop: 'fill', gravity: 'auto' }
+    // ],
+  },
+});
+
+const storage3 = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'courseImages',
+    allowed_formats: ['jpg', 'jpeg', 'png'],
+    // transformation: [
+    //   { width: 500, height: 600, crop: 'fill', gravity: 'auto' }
+    // ],
+  },
+});
+
+module.exports = { cloudinary, storage, storage2, storage3 };
