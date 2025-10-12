@@ -6,25 +6,24 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
-  
+
   // Location fields
   city: { type: String },
   state: { type: String },
   country: { type: String },
-  
-  // Package/Subscription fields
-  package: { type: String, enum: ['free', 'pro', 'premium'], default: 'free' },
-  subscriptionExpiry: { type: Date },
-  
+
+  // Stripe fields
+  stripeCustomerId: { type: String, default: null },
+
   // Password reset fields
   resetPasswordToken: { type: String },
   resetPasswordExpires: { type: Date },
-  
+
   // Account status
   isActive: { type: Boolean, default: true },
   emailVerified: { type: Boolean, default: false },
   emailVerificationToken: { type: String },
-  
+
   // Timestamps
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
@@ -39,7 +38,7 @@ UserSchema.index({ resetPasswordToken: 1 });
 UserSchema.index({ emailVerificationToken: 1 });
 
 // Pre-save hook to update the updatedAt field
-UserSchema.pre('save', function(next) {
+UserSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
   next();
 });

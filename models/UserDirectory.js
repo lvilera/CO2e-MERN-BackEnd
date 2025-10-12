@@ -3,43 +3,44 @@ const mongoose = require('mongoose');
 const UserDirectorySchema = new mongoose.Schema({
   company: { type: String, required: true },
   email: { type: String, required: true, unique: true },
+  address: { type: String, required: true },
   phone: { type: String, required: true },
   industry: { type: String, required: true },
   city: { type: String, required: true },
   state: { type: String },
   country: { type: String },
   contractorType: { type: String }, // For Local Contractors category (optional)
-  
+
   // Enhanced fields
   imageUrl: { type: String, default: '' },
   socialType: { type: String, default: '' }, // facebook, instagram, linkedin, etc.
   socialLink: { type: String, default: '' }, // URL to social media profile
   package: { type: String, enum: ['free', 'pro', 'premium'], default: 'free' },
-  
+
   // User submission tracking
   userId: { type: String }, // If user is logged in
   userEmail: { type: String }, // Email of the user who submitted (can differ from listing email)
   submissionMethod: { type: String, enum: ['form', 'api'], default: 'form' },
-  
+
   // Moderation and status
   status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   moderationNotes: { type: String, default: '' },
   isVerified: { type: Boolean, default: false },
   isPremiumListing: { type: Boolean, default: false },
   premiumExpiry: { type: Date },
-  
+
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
 
 // Duplicate email check static method
-UserDirectorySchema.statics.checkDuplicate = async function(email) {
+UserDirectorySchema.statics.checkDuplicate = async function (email) {
   const existing = await this.findOne({ email: email.toLowerCase() });
   return existing;
 };
 
 // Custom validation for contractorType
-UserDirectorySchema.pre('validate', function(next) {
+UserDirectorySchema.pre('validate', function (next) {
   if (this.industry === 'Local Contractors' && (!this.contractorType || this.contractorType.trim() === '')) {
     this.invalidate('contractorType', 'Contractor type is required for Local Contractors industry');
   }

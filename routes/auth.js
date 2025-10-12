@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const Instructor = require('../models/Instructor');
 const nodemailer = require('nodemailer');
 const { getUserLocation } = require('../services/geolocationService');
+const subscriptionService = require('../services/subscriptionService');
 
 const router = express.Router();
 
@@ -380,6 +381,9 @@ router.get('/me', async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(decoded.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const subscriptionInfo = await subscriptionService.getUserSubscriptionInfo(user._id);
+
     res.json({
       email: user.email,
       package: user.package,
@@ -387,6 +391,7 @@ router.get('/me', async (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role || 'user',
+      subscriptionInfo
     });
   } catch (err) {
     res.status(401).json({ error: 'Invalid token' });
