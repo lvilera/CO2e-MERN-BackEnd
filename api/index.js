@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const cardRoutes = require('../routes/cardRoutes');
+const errorHandlerMiddleware = require('../middlewares/errorHandlerMiddleware');
 
 // Try to fix DNS resolution issues
 const dns = require('dns');
@@ -32,7 +33,8 @@ const app = express();
 
 // MongoDB Connection String - Try multiple options with better DNS handling
 const mongoOptions = [
-  "mongodb+srv://ShoaibFarooka:5ddghWES680comTU@cluster.jyy8bnn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster",
+  "mongodb://ShoaibFarooka:5ddghWES680comTU@ac-y7zuomn-shard-00-00.jyy8bnn.mongodb.net:27017,ac-y7zuomn-shard-00-01.jyy8bnn.mongodb.net:27017,ac-y7zuomn-shard-00-02.jyy8bnn.mongodb.net:27017/?ssl=true&replicaSet=atlas-1fzpzw-shard-0&authSource=admin&retryWrites=true&w=majority&appName=Cluster",
+  // "mongodb+srv://ShoaibFarooka:5ddghWES680comTU@cluster.jyy8bnn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster",
   // "mongodb+srv://aryan:2021cs613@cluster0.o8bu9nt.mongodb.net/myDatabase?retryWrites=true&w=majority&directConnection=false",
   // "mongodb://aryan:2021cs613@ac-hdxyrp8-shard-00-00.o8bu9nt.mongodb.net:27017,ac-hdxyrp8-shard-00-01.o8bu9nt.mongodb.net:27017,ac-hdxyrp8-shard-00-02.o8bu9nt.mongodb.net:27017/myDatabase?ssl=true&replicaSet=atlas-yh1s3n-shard-0&authSource=admin&retryWrites=true&w=majority&directConnection=false",
   // "mongodb+srv://aryan:2021cs613@cluster0.o8bu9nt.mongodb.net/myDatabase?retryWrites=true&w=majority&directConnection=false&serverSelectionTimeoutMS=30000",
@@ -63,7 +65,13 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 
-app.use(express.json());
+app.use((req, res, next) => {
+  if (req.originalUrl.startsWith('/api/stripe/webhooks')) {
+    express.raw({ type: 'application/json' })(req, res, next);
+  } else {
+    express.json()(req, res, next);
+  }
+});
 app.use(cookieParser());
 
 // Display Stripe key for debugging
@@ -91,7 +99,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api', authRoutes);
-app.use('/api', stripeRoutes);
+app.use('/api/stripe', stripeRoutes);
 app.use('/card', cardRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/blogs', blogRoutes);
@@ -105,6 +113,9 @@ app.use('/api/instructors', instructorRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/guides', guideRoutes);
+
+//Error Handler
+app.use(errorHandlerMiddleware);
 
 // MongoDB Connection with retry logic and DNS handling
 const connectWithRetry = async () => {
