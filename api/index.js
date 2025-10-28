@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 const cookieParser = require('cookie-parser');
 const cardRoutes = require('../routes/cardRoutes');
 const errorHandlerMiddleware = require('../middlewares/errorHandlerMiddleware');
@@ -28,6 +29,8 @@ const instructorRoutes = require('../routes/instructor');
 const bookingRoutes = require('../routes/bookingRoutes');
 const userRoutes = require('../routes/userRoutes');
 const guideRoutes = require('../routes/guideRoutes');
+const auditRoutes = require('../routes/auditRoutes');
+const productRoutes = require('../routes/productRoutes')
 
 const app = express();
 
@@ -73,6 +76,7 @@ app.use((req, res, next) => {
   }
 });
 app.use(cookieParser());
+app.use('/report', express.static(path.join(__dirname, '../report')));
 
 // Display Stripe key for debugging
 console.log('Using Stripe key:', process.env.STRIPE_SECRET_KEY?.substring(0, 20) + '...');
@@ -113,6 +117,8 @@ app.use('/api/instructors', instructorRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/guides', guideRoutes);
+app.use('/api/audit', auditRoutes);
+app.use('/api/products', productRoutes);
 
 //Error Handler
 app.use(errorHandlerMiddleware);
