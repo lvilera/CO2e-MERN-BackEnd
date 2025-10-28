@@ -1,1 +1,17 @@
-{ "version": 2, "rewrites": [{ "source": "/(.*)", "destination": "/api" }] }
+{
+    "version": 2,
+    "rewrites": [
+        {
+            "source": "/(.*)",
+            "destination": "/api"
+        }
+    ],
+    "functions": {
+        "api/audit.js": {
+            "includeFiles": "node_modules/lighthouse/shared/localization/locales/**"
+        },
+        "api/audit/index.js": {
+            "includeFiles": "node_modules/lighthouse/shared/localization/locales/**"
+        }
+    }
+}
