@@ -7,10 +7,7 @@
         }
     ],
     "functions": {
-        "api/audit.js": {
-            "includeFiles": "node_modules/lighthouse/shared/localization/locales/**"
-        },
-        "api/audit/index.js": {
+        "api/index.js": {
             "includeFiles": "node_modules/lighthouse/shared/localization/locales/**"
         }
     }
