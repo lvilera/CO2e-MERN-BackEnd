@@ -1,4 +1,5 @@
 const commonService = require('./commonService');
+const Product = require('../models/Product');
 const stripe = require('../configs/stripe.config');
 
 const webHookKey = process.env.STRIPE_WEBHOOK_KEY || 'whsec_RHCz1vmgSr97f6KQYKJdprG4B3ulsr9I';
@@ -24,27 +25,37 @@ const createCustomer = async (name, email) => {
 //     }
 // };
 
-const createCheckoutSession = async (priceId, stripeCustomerId, CLIENT_URL) => {
+const createCheckoutSession = async (priceId, stripeCustomerId, CLIENT_URL, mode = "subscription", type = "subscription", quantity = 1) => {
     try {
-        const session = await stripe.checkout.sessions.create(
-            {
-                mode: "subscription",
-                payment_method_types: ["card"],
-                line_items: [
-                    {
-                        price: priceId,
-                        quantity: 1,
-                    },
-                ],
-                success_url: `${CLIENT_URL}/success`,
-                cancel_url: `${CLIENT_URL}/cancel`,
-                customer: stripeCustomerId,
-            }
-        );
+        // Validate input
+        if (!priceId || !stripeCustomerId || !CLIENT_URL) {
+            const error = new Error("Missing required parameters!");
+            error.code = 400;
+            throw error;
+        }
+
+        const session = await stripe.checkout.sessions.create({
+            mode,
+            payment_method_types: ["card"],
+            line_items: [
+                {
+                    price: priceId,
+                    quantity: quantity,
+                },
+            ],
+            success_url: `${CLIENT_URL}/success?mode=${mode}&type=${type}&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${CLIENT_URL}/cancel?mode=${mode}&type=${type}`,
+            customer: stripeCustomerId,
+            metadata: {
+                type, // "subscription", "product", "token", etc.
+                quantity: quantity, // store for webhook reference
+            },
+        });
+
         return session.url;
     } catch (error) {
-        console.log("Stripe Checkout Error: ", error);
-        const newError = new Error('Unable to create checkout session!');
+        console.error("Stripe Checkout Error:", error);
+        const newError = new Error("Unable to create checkout session!");
         newError.code = 400;
         throw newError;
     }
@@ -117,6 +128,43 @@ const handlePaymentSucceededEvent = async (event) => {
     }
 };
 
+const handleSessionCompletedEvent = async (event) => {
+    try {
+        const session = event.data.object;
+        const stripeSessionId = session.id;
+        const stripePaymentIntentId = session.payment_intent;
+        const customerId = session.customer;
+        const quantity = Number(session.metadata?.quantity);
+
+        const userId = await commonService.fetchUserId({ stripeCustomerId: customerId });
+
+        const lineItems = await stripe.checkout.sessions.listLineItems(stripeSessionId, { limit: 1 });
+        const priceId = lineItems.data[0].price.id;
+        const product = await Product.findOne({ stripePriceId: priceId });
+
+        if (!product) {
+            console.warn('Product not found for priceId:', priceId);
+            return res.status(400).json({ message: 'Product not found.' });
+        }
+
+        const data = {
+            stripeSessionId,
+            stripePaymentIntentId,
+            user: userId,
+            customerId,
+            product: product._id,
+            quantity,
+            status: "paid"
+        }
+        return data;
+    } catch (error) {
+        console.log("Session Completed Event Error: ", error);
+        const newError = new Error(`Unable to fetch info from event!`);
+        newError.code = 400;
+        throw newError;
+    }
+};
+
 const updateSubscription = async (subscriptionId, newPriceId) => {
     try {
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
@@ -142,6 +190,7 @@ module.exports = {
     // updateCustomerEmail,
     constructEvent,
     handlePaymentSucceededEvent,
+    handleSessionCompletedEvent,
     createCheckoutSession,
     updateSubscription
 }

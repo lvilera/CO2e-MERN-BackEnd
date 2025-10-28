@@ -30,6 +30,7 @@ const bookingRoutes = require('../routes/bookingRoutes');
 const userRoutes = require('../routes/userRoutes');
 const guideRoutes = require('../routes/guideRoutes');
 const auditRoutes = require('../routes/auditRoutes');
+const productRoutes = require('../routes/productRoutes')
 
 const app = express();
 
@@ -117,6 +118,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/guides', guideRoutes);
 app.use('/api/audit', auditRoutes);
+app.use('/api/products', productRoutes);
 
 //Error Handler
 app.use(errorHandlerMiddleware);

@@ -41,4 +41,15 @@ const storage3 = new CloudinaryStorage({
   },
 });
 
-module.exports = { cloudinary, storage, storage2, storage3 };
+const storage4 = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'productImages',
+    allowed_formats: ['jpg', 'jpeg', 'png'],
+    // transformation: [
+    //   { width: 500, height: 600, crop: 'fill', gravity: 'auto' }
+    // ],
+  },
+});
+
+module.exports = { cloudinary, storage, storage2, storage3, storage4 };
