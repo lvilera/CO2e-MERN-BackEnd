@@ -55,6 +55,7 @@ app.use(cors({
     'http://localhost:3001',
     'https://co2e.vercel.app',
     'https://www.co2eportal.com',
+    'https://co2eportal.com/',
     // Add common frontend deployment patterns
     /https:\/\/.*\.vercel\.app$/,
     /https:\/\/.*\.netlify\.app$/,
