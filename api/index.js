@@ -36,7 +36,8 @@ const app = express();
 
 // MongoDB Connection String - Try multiple options with better DNS handling
 const mongoOptions = [
-  "mongodb://ShoaibFarooka:5ddghWES680comTU@ac-y7zuomn-shard-00-00.jyy8bnn.mongodb.net:27017,ac-y7zuomn-shard-00-01.jyy8bnn.mongodb.net:27017,ac-y7zuomn-shard-00-02.jyy8bnn.mongodb.net:27017/?ssl=true&replicaSet=atlas-1fzpzw-shard-0&authSource=admin&retryWrites=true&w=majority&appName=Cluster",
+  "mongodb+srv://Data1:Data_01_MongoDB@cluster.jyy8bnn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster",
+  //"mongodb://ShoaibFarooka:5ddghWES680comTU@ac-y7zuomn-shard-00-00.jyy8bnn.mongodb.net:27017,ac-y7zuomn-shard-00-01.jyy8bnn.mongodb.net:27017,ac-y7zuomn-shard-00-02.jyy8bnn.mongodb.net:27017/?ssl=true&replicaSet=atlas-1fzpzw-shard-0&authSource=admin&retryWrites=true&w=majority&appName=Cluster",
   // "mongodb+srv://ShoaibFarooka:5ddghWES680comTU@cluster.jyy8bnn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster",
   // "mongodb+srv://aryan:2021cs613@cluster0.o8bu9nt.mongodb.net/myDatabase?retryWrites=true&w=majority&directConnection=false",
   // "mongodb://aryan:2021cs613@ac-hdxyrp8-shard-00-00.o8bu9nt.mongodb.net:27017,ac-hdxyrp8-shard-00-01.o8bu9nt.mongodb.net:27017,ac-hdxyrp8-shard-00-02.o8bu9nt.mongodb.net:27017/myDatabase?ssl=true&replicaSet=atlas-yh1s3n-shard-0&authSource=admin&retryWrites=true&w=majority&directConnection=false",
