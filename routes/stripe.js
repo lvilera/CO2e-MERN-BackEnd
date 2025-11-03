@@ -15,14 +15,17 @@ router.get('/health', async (req, res) => {
     res.json({
       status: 'Stripe is working',
       account: account.id,
-      stripeKey: process.env.STRIPE_SECRET_KEY?? 'sk_test_51Rj1BnQqlrTjfVZHQxOrodCldv1ac5l72oVnAVgOdyZ7Z1bEBwIStbD012CS4ZKG9gVSpqw701l5yz4NVlWKQkR1009JlSK0Il'  
+      stripeKey: process.env.STRIPE_SECRET_KEY
+      
+      // ?? 'sk_test_51Rj1BnQqlrTjfVZHQxOrodCldv1ac5l72oVnAVgOdyZ7Z1bEBwIStbD012CS4ZKG9gVSpqw701l5yz4NVlWKQkR1009JlSK0Il'  
     });
   } catch (error) {
     console.error('Stripe health check failed:', error);
     res.status(500).json({
       status: 'Stripe connection failed',
       error: error.message,
-      stripeKey: process.env.STRIPE_SECRET_KEY?? 'sk_test_51Rj1BnQqlrTjfVZHQxOrodCldv1ac5l72oVnAVgOdyZ7Z1bEBwIStbD012CS4ZKG9gVSpqw701l5yz4NVlWKQkR1009JlSK0Il' 
+      stripeKey: process.env.STRIPE_SECRET_KEY
+      // ?? 'sk_test_51Rj1BnQqlrTjfVZHQxOrodCldv1ac5l72oVnAVgOdyZ7Z1bEBwIStbD012CS4ZKG9gVSpqw701l5yz4NVlWKQkR1009JlSK0Il' 
     });
   }
 });
@@ -31,8 +34,6 @@ router.get('/health', async (req, res) => {
 router.post('/create-checkout-session', authMiddleware.authenticateRequest, async (req, res, next) => {
   try {
     const CLIENT_URL = req.get('origin');
-    console.log(CLIENT_URL);
-    
     const { priceId, mode, type, quantity } = req.body;
 
     if (!priceId) {
