@@ -17,7 +17,7 @@ router.get('/health', async (req, res) => {
       account: account.id,
       stripeKey: process.env?.STRIPE_SECRET_KEY
       
-      // ?? 'sk_test_51Rj1BnQqlrTjfVZHQxOrodCldv1ac5l72oVnAVgOdyZ7Z1bEBwIStbD012CS4ZKG9gVSpqw701l5yz4NVlWKQkR1009JlSK0Il'  
+         
     });
   } catch (error) {
     console.error('Stripe health check failed:', error);
@@ -25,7 +25,7 @@ router.get('/health', async (req, res) => {
       status: 'Stripe connection failed',
       error: error.message,
       stripeKey: process.env?.STRIPE_SECRET_KEY
-      // ?? 'sk_test_51Rj1BnQqlrTjfVZHQxOrodCldv1ac5l72oVnAVgOdyZ7Z1bEBwIStbD012CS4ZKG9gVSpqw701l5yz4NVlWKQkR1009JlSK0Il' 
+        
     });
   }
 });

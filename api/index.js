@@ -98,7 +98,7 @@ app.options(
 app.use('/report', express.static(path.join(__dirname, '../report')));
 
 // ---------- Debug ----------
-console.log('Using Stripe key:', process.env.STRIPE_SECRET_KEY?.substring(0, 20) + '...');
+//console.log('Using Stripe key:', process.env.STRIPE_SECRET_KEY?.substring(0, 20) + '...');
 
 // ---------- Safari/iOS auth header → cookie bridge ----------
 app.use((req, _res, next) => {
