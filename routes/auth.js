@@ -10,7 +10,7 @@ const subscriptionService = require('../services/subscriptionService');
 const router = express.Router();
 
 // JWT Secret from environment variables
-const JWT_SECRET = 'this_is_a_secure_jwt_secret_123456';
+const JWT_SECRET = process.env.STRIPE_SECRET_KEY ?? 'JWT$SECRET';
 
 // Signup Route
 router.post('/signup', async (req, res) => {

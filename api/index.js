@@ -31,6 +31,7 @@ const userRoutes = require('../routes/userRoutes');
 const guideRoutes = require('../routes/guideRoutes');
 const auditRoutes = require('../routes/auditRoutes');
 const productRoutes = require('../routes/productRoutes')
+const pickAuditFields = require('../routes/auditRoutes')
 
 const app = express();
 
@@ -50,25 +51,26 @@ const uri = mongoOptions[currentUriIndex];
 
 // CORS middleware - must be before any routes or express.json()
 app.use(cors({
-  origin: [
+  origin:  [
     'http://localhost:3000',
     'http://localhost:3001',
     'https://co2e.vercel.app',
     'https://www.co2eportal.com',
     'https://co2eportal.com/',
     // Add common frontend deployment patterns
-    /https:\/\/.*\.vercel\.app$/,
-    /https:\/\/.*\.netlify\.app$/,
-    /https:\/\/.*\.herokuapp\.com$/,
+    //https:\/\/.*\.vercel\.app$/,
+    //https:\/\/.*\.netlify\.app$/,
+    //https:\/\/.*\.herokuapp\.com$/,
     // For debugging - allow any HTTPS origin
-    /https:\/\/.*/
-  ],
+    // https:\/\/. 
+  ]   ,
+  
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
   preflightContinue: false,
   optionsSuccessStatus: 200
-}));
+})); 
 
 app.use((req, res, next) => {
   if (req.originalUrl.startsWith('/api/stripe/webhooks')) {
@@ -121,6 +123,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/guides', guideRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/audits', pickAuditFields);
 
 //Error Handler
 app.use(errorHandlerMiddleware);
