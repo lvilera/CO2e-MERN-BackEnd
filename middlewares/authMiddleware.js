@@ -5,6 +5,7 @@ const authenticateRequest = (req, res, next) => {
     try {
         let token = req.cookies.token;
 
+
         if (!token && req.headers.authorization) {
             token = req.headers.authorization.replace('Bearer ', '');
         }
