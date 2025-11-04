@@ -33,7 +33,7 @@ async function assertPriceExists(priceId, opts = {}) {
 }
 
 function buildSuccessCancelUrls(origin) {
-  const base = origin || process.env.CLIENT_URL || 'http://localhost:3000';
+  const base = origin || process.env.CLIENT_URL || 'https://co2eportal.com/';
   return {
     success_url: `${base}/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${base}/cancel`,
