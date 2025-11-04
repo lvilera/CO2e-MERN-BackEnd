@@ -61,7 +61,7 @@ router.post('/create-checkout-session', authMiddleware.authenticateRequest, asyn
     let stripeCustomerId = await userService.fetchUserStripeCustomerId(userId);
     if (!stripeCustomerId) {
       const user = await userService.fetchUser(userId);
-      stripeCustomerId = await stripeService.createCustomer(user.name, user.email);
+      stripeCustomerId = await stripeService.createCustomer(user.firstName + '' + user.lastName, user.email);
       await userService.updateUser(userId, { stripeCustomerId });
     }
     const sessionURL = await stripeService.createCheckoutSession(priceId, stripeCustomerId, CLIENT_URL, mode, type, quantity);
