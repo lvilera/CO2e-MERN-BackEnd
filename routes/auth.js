@@ -72,12 +72,12 @@ router.post('/login', async (req, res) => {
         { expiresIn: '2d' }
       );
 
-      res.cookie('token', adminToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
-        maxAge: 2 * 24 * 60 * 60 * 1000
-      });
+      // res.cookie('token', adminToken, {
+      //   httpOnly: true,
+      //   secure: process.env.NODE_ENV === 'production',
+      //   sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+      //   maxAge: 2 * 24 * 60 * 60 * 1000
+      // });
 
       return res.status(200).json({
         message: 'Admin login successful',
@@ -122,12 +122,12 @@ router.post('/login', async (req, res) => {
       { expiresIn: '2d' }
     );
 
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Only secure in production
-      sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax', // More compatible with iPhone
-      maxAge: 2 * 24 * 60 * 60 * 1000 // 2 days
-    });
+    // res.cookie('token', token, {
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === 'production', // Only secure in production
+    //   sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax', // More compatible with iPhone
+    //   maxAge: 2 * 24 * 60 * 60 * 1000 // 2 days
+    // });
 
     res.status(200).json({
       message: 'Login successful',
