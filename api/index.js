@@ -22,7 +22,7 @@ const instructorRoutes = require('../routes/instructor');
 const bookingRoutes = require('../routes/bookingRoutes');
 const userRoutes = require('../routes/userRoutes');
 const guideRoutes = require('../routes/guideRoutes');
-const auditRoutes = require('../routes/auditRoutes');
+const auditRoutes = require('../routes/audits');
 const productRoutes = require('../routes/productRoutes');
 
 let pickAuditFields;

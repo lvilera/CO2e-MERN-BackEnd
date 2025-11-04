@@ -10,6 +10,8 @@ const router = express.Router();
 // Audit
 router.post('/', async (req, res) => {
     try {
+      console.log(req);
+      
         const { url } = req.body;
         const hostname = auditUtils.extractHostname(url);
         if (!hostname) return res.status(400).json({ error: 'Invalid URL' });
