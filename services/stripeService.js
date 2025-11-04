@@ -46,16 +46,15 @@ function idempoKey(customerId, priceId, mode) {
 
 /* --------------------------------- API ---------------------------------- */
 
-const createCustomer = async (name, email, opts = {}) => {
-  const customer = await stripe.customers.create({ name, email }, opts);
-  if (!customer?.id) {
-    const error = new Error('Unable to create customer!');
-    error.code = 400;
-    throw error;
-  }
-  return customer.id;
-};
+async function createCustomer(name, email, opts = {}) {
+  const params = { name, email }; // must be a single object
+  const requestOptions = {};
+  if (opts.idempotencyKey) requestOptions.idempotencyKey = opts.idempotencyKey;
 
+  // DO NOT pass a second params object here
+  const customer = await stripe.customers.create(params, requestOptions);
+  return customer; // caller should use customer.id
+}
 const createCheckoutSession = async (
   priceId,
   stripeCustomerId,
