@@ -135,15 +135,18 @@ if (pickAuditFields && typeof pickAuditFields === 'function') {
 app.use(errorHandlerMiddleware);
 
 // ---------- Mongo ----------
-const mongoOptions = [
+/* const mongoOptions = [
   'mongodb+srv://Data1:Data_01_MongoDB@cluster.jyy8bnn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster',
+]; */
+const mongoOptions = [
+  'mongodb://localhost:27017/co2eportal-db',
 ];
 
 let currentUriIndex = 0;
 
 const connectWithRetry = async () => {
   try {
-    const uri = mongoOptions[currentUriIndex];
+    const uri = process.env.MONGODB_URI?? mongoOptions[currentUriIndex];
     console.log(`🔄 Attempting to connect to MongoDB (option ${currentUriIndex + 1}/${mongoOptions.length})...`);
 
     if (uri.includes('mongodb+srv://')) {
