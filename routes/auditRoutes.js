@@ -9,61 +9,92 @@ const router = express.Router();
 
 // Audit
 router.post('/', async (req, res) => {
+  try {
+    console.log(req);
+
+    const { url } = req.body;
+    const hostname = auditUtils.extractHostname(url);
+    if (!hostname) return res.status(400).json({ error: 'Invalid URL' });
+
+    const { default: lighthouse } = await import('lighthouse');
+    const { launch } = await import('chrome-launcher');
+    // const chrome = await launch({ chromeFlags: ['--headless'] });
+
+    const chrome = await launch({
+      chromePath: process.env.CHROME_PATH, // optional, but recommended
+      chromeFlags: [
+        '--headless=new',
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-zygote',
+      ],
+    });
+
+    let result;
     try {
-      console.log(req);
-      
-        const { url } = req.body;
-        const hostname = auditUtils.extractHostname(url);
-        if (!hostname) return res.status(400).json({ error: 'Invalid URL' });
+      const options = {
+        port: chrome.port,
+        output: 'html',
+        logLevel: 'info',
+      };
 
-        const { default: lighthouse } = await import('lighthouse');
-        const { launch } = await import('chrome-launcher');
-        const chrome = await launch({ chromeFlags: ['--headless'] });
-        const options = { port: chrome.port, output: 'html', logLevel: 'info' };
-        const result = await lighthouse(url, options);
+      result = await lighthouse(url, options);
+    } finally {
+      await chrome.kill();
+    }
 
-        const reportHtml = result.report;
-        const totalBytes = result.lhr.audits['total-byte-weight'].numericValue;
-        const performanceScore = Math.round(result.lhr.categories.performance.score * 100);
-        const green = await auditUtils.isGreenHost(hostname);
+    const reportHtml = result.report;
+    const totalBytes = result.lhr.audits['total-byte-weight'].numericValue;
+    const performanceScore = Math.round(result.lhr.categories.performance.score * 100);
+    const green = await auditUtils.isGreenHost(hostname);
 
-        let co2e = 0;
-        let carbonRating = 'N/A';
+    let co2e = 0;
+    let carbonRating = 'N/A';
 
-        // Call the Website Carbon API, with a specific try...catch block
-        try {
-            const carbonApiUrl = `https://api.websitecarbon.com/data?bytes=${totalBytes}&green=${green ? 1 : 0}`;
-            const carbonApiResponse = await axios.get(carbonApiUrl);
-            const carbonData = carbonApiResponse.data;
+    // Call the Website Carbon API, with a specific try...catch block
+    try {
+      const carbonApiUrl = `https://api.websitecarbon.com/data?bytes=${totalBytes}&green=${green ? 1 : 0}`;
+      const carbonApiResponse = await axios.get(carbonApiUrl);
+      const carbonData = carbonApiResponse.data;
+      co2e = carbonData.gco2e;
+      carbonRating = carbonData.rating;
+      console.log(carbonRating);
+    } catch (apiError) {
+      console.error('Failed to fetch data from Website Carbon API. Using fallback values:', apiError);
+      // Fallback values in case of API failure
+      co2e = null;
+      carbonRating = 'N/A';
+    }
 
-            co2e = carbonData.gco2e;
-            carbonRating = carbonData.rating;
-        } catch (apiError) {
-            console.error('Failed to fetch data from Website Carbon API. Using fallback values:', apiError);
-            // Fallback values in case of API failure
-            co2e = null;
-            carbonRating = 'N/A';
-        }
+    // Hardcoded scores for demonstration, you can adjust as needed
+    const co2Score = co2e !== null && co2e < 0.5 ? 100 : co2e !== null && co2e < 1 ? 70 : 40;
+    const greenScore = Math.round((performanceScore * 0.4) + (green ? 100 * 0.3 : 0) + (co2Score * 0.3));
 
-        // Hardcoded scores for demonstration, you can adjust as needed
-        const co2Score = co2e !== null && co2e < 0.5 ? 100 : co2e !== null && co2e < 1 ? 70 : 40;
-        const greenScore = Math.round(
-            (performanceScore * 0.4) +
-            (green ? 100 * 0.3 : 0) +
-            (co2Score * 0.3)
-        );
+    // Get suggestions based on page weight
+    const suggestions = auditUtils.getSuggestions(totalBytes);
 
-        // Get suggestions based on page weight
-        const suggestions = auditUtils.getSuggestions(totalBytes);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const htmlPath = `report/html/report-${timestamp}.html`;
-        const pdfPath = `report/pdf/report-${timestamp}.pdf`;
+    // ✅ VPS FIX: always use absolute paths + ensure folders exist
+    const reportsRoot = path.resolve(__dirname, '..', 'report'); // routes -> projectRoot/report
+    const htmlDir = path.join(reportsRoot, 'html');
+    const pdfDir = path.join(reportsRoot, 'pdf');
 
-        // Map suggestions to list items for display
-        const suggestionsHtml = suggestions.map(suggestion => `<li>${suggestion}</li>`).join('');
+    fs.mkdirSync(htmlDir, { recursive: true });
+    fs.mkdirSync(pdfDir, { recursive: true });
 
-        const customHtml = `
+    const htmlFileName = `report-${timestamp}.html`;
+    const pdfFileName = `report-${timestamp}.pdf`;
+
+    const htmlPath = path.join(htmlDir, htmlFileName);
+    const pdfPath = path.join(pdfDir, pdfFileName);
+
+    // Map suggestions to list items for display
+    const suggestionsHtml = suggestions.map((suggestion) => `<li>${suggestion}</li>`).join('');
+
+    const customHtml = `
       <html>
       <head>
         <title>Audit Report</title>
@@ -151,36 +182,39 @@ router.post('/', async (req, res) => {
       </html>
     `;
 
-        fs.writeFileSync(htmlPath, customHtml);
+    fs.writeFileSync(htmlPath, customHtml);
 
-        try {
-            const browser = await puppeteer.launch({
-                headless: "new",
-                args: ['--no-sandbox', '--disable-setuid-sandbox']
-            });
-            const page = await browser.newPage();
+    try {
+      const browser = await puppeteer.launch({
+        headless: 'new',
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+      const page = await browser.newPage();
 
-            await page.setContent(customHtml, { waitUntil: 'networkidle0' });
+      await page.setContent(customHtml, { waitUntil: 'networkidle0' });
 
-            await page.pdf({
-                path: pdfPath,
-                format: 'A4',
-                printBackground: true,
-                margin: { top: '20mm', bottom: '20mm', left: '10mm', right: '10mm' }
-            });
+      await page.pdf({
+        path: pdfPath,
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '20mm', bottom: '20mm', left: '10mm', right: '10mm' },
+      });
 
-            await browser.close();
+      await browser.close();
 
-            res.json({ htmlPath: '/' + htmlPath, pdfPath: '/' + pdfPath });
-        } catch (err) {
-            console.error('PDF generation failed:', err);
-            res.status(500).json({ error: 'PDF generation failed' });
-        }
-    } catch (error) {
-        console.error('Audit failed:', error);
-        res.status(500).json({ error: 'Audit failed' });
-
+      // ✅ Return public URLs (assuming you serve /report statically)
+      res.json({
+        htmlPath: `/report/html/${htmlFileName}`,
+        pdfPath: `/report/pdf/${pdfFileName}`,
+      });
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      res.status(500).json({ error: 'PDF generation failed' });
     }
+  } catch (error) {
+    console.error('Audit failed:', error);
+    res.status(500).json({ error: 'Audit failed' });
+  }
 });
 
 module.exports = router;

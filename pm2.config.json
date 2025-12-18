@@ -2,7 +2,7 @@
   "apps": [
     {
       "name": "co2ePortal-server",
-      "cwd": "/var/www/CO2e-MERN", 
+      "cwd": "/var/www/CO2e-MERN-BackEnd", 
       "script": "npm",
       "args": "run start",
       "env": {
