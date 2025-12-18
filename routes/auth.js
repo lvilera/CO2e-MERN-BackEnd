@@ -74,8 +74,8 @@ router.post('/login', async (req, res) => {
 
       res.cookie('token', adminToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'development',
-        sameSite: process.env.NODE_ENV === 'development' ? 'None' : 'Lax',
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
         maxAge: 2 * 24 * 60 * 60 * 1000
       });
 
@@ -124,8 +124,8 @@ router.post('/login', async (req, res) => {
 
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'development', // Only secure in production
-      sameSite: process.env.NODE_ENV === 'development' ? 'None' : 'Lax', // More compatible with iPhone
+      secure: process.env.NODE_ENV === 'production', // Only secure in production
+      sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax', // More compatible with iPhone
       maxAge: 2 * 24 * 60 * 60 * 1000 // 2 days
     });
 
