@@ -4,7 +4,11 @@ const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer');
 const auditUtils = require('../utils/auditUtils');
-
+const Audit = require('../models/Audit');
+// routes/audits.js
+const express = require('express'); 
+const Audit = require('../models/Audit');
+const { computeEmissions } = require('../utils/computeEmissions');
 const router = express.Router();
 
 // Audit
