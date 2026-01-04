@@ -63,8 +63,8 @@ router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   console.log('🔐 Login attempt for email:', email);
 
-  try {
-    // Check for hardcoded admin credentials first
+  try { 
+    // Hardcoded admin
     if (email === 'admin@admin.com' && password === 'admin123') {
       const adminToken = jwt.sign(
         { userId: 'admin', role: 'admin' },
@@ -88,23 +88,28 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Regular user login
-    console.log('🔍 Looking for user with email:', email);
-    const user = await User.findOne({ email });
-    if (!user) {
-      console.log('❌ User not found for email:', email);
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-    console.log('✅ User found:', user.email);
+    // ✅ Force include "package" if it’s select:false in schema
+    const user = await User.findOne({ email }).select('+package');
+    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
-    // Update user's location on login if not already set (non-blocking)
+    // ✅ Robust package resolution (covers schema missing / undefined)
+    const userPackage =
+      user.package ??
+      (typeof user.get === 'function' ? user.get('package') : undefined) ??
+      user?._doc?.package ??
+      'free';
+
+    // Optional: log once to confirm what's happening
+    console.log('📦 user.package resolved as:', userPackage);
+
+    // Location update (non-blocking)
     if (!user.city || user.city === 'Unknown') {
       try {
         const userLocation = await getUserLocation(req);
-        if (userLocation && userLocation.city && userLocation.city !== 'Unknown') {
+        if (userLocation?.city && userLocation.city !== 'Unknown') {
           user.city = userLocation.city;
           user.state = userLocation.state;
           user.country = userLocation.country;
@@ -112,29 +117,28 @@ router.post('/login', async (req, res) => {
         }
       } catch (locationError) {
         console.error('Location detection failed, continuing with login:', locationError.message);
-        // Don't fail login if location detection fails
       }
     }
 
     const token = jwt.sign(
       { userId: user._id, role: 'user' },
-      JWT_SECRET, // ✅ using hardcoded key
+      JWT_SECRET,
       { expiresIn: '2d' }
     );
 
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Only secure in production
-      sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax', // More compatible with iPhone
-      maxAge: 2 * 24 * 60 * 60 * 1000 // 2 days
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+      maxAge: 2 * 24 * 60 * 60 * 1000
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       message: 'Login successful',
       role: user.role,
-      package: user.package,
+      package: userPackage, // ✅ guaranteed
       userId: user._id,
-      token: token,
+      token,
       location: {
         city: user.city,
         state: user.state,
@@ -144,13 +148,13 @@ router.post('/login', async (req, res) => {
 
   } catch (err) {
     console.error('Login route error:', err);
-    console.error('Error stack:', err.stack);
-    res.status(500).json({
+    return res.status(500).json({
       message: 'Server error',
       error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
   }
 });
+
 
 // Update user location
 router.put('/update-location', async (req, res) => {

@@ -11,6 +11,8 @@ const UserSchema = new mongoose.Schema({
   city: { type: String },
   state: { type: String },
   country: { type: String },
+  
+  package: { type: String },
 
   // Stripe fields
   stripeCustomerId: { type: String, default: null },
